@@ -1,0 +1,837 @@
+\documentclass[12pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{polski}
+\usepackage[russian, polish, english]{babel}
+
+\usepackage{titling}
+\usepackage{url}
+\usepackage{float}
+\usepackage[hidelinks]{hyperref}
+\usepackage{tikz}
+\usetikzlibrary{matrix}
+\usepackage{tikz-dependency}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{tablefootnote}
+\usepackage{minted}
+
+
+
+\title{Dependency Trees in Automatic Inflection of Complex Phrases in Polish}
+\author{Ryszard Tuora}
+\date{}
+
+\newcommand{\gloss}[1]{\vspace{10pt}\indent\textit{#1}\vspace{5pt}}
+\newcommand{\inlinegloss}[1]{`\textit{#1}'}
+\newcommand{\gap}{\_\_\_}
+\newcommand{\symbolic}[1]{\textit{\textbf{#1}}}
+\newcommand{\todo}[1]{\textbf{TODO}}
+\addto\extrasenglish{%
+\def\listingname{listing}%
+\def\listingautorefnamename{listing}%
+\def\subsubsectionname{subsection}%
+\def\subsubsectionautorefname{subsection}%
+}
+
+
+\begin{document}
+\begin{center}
+\Large
+University of Warsaw\\
+Faculty of Philosophy\\
+\vspace{\baselineskip}
+\large
+\theauthor\\
+\normalsize
+Record book number: $351046$\\
+\LARGE
+\vspace{2\baselineskip}
+\thetitle \\
+\vspace{2\baselineskip}
+\normalsize
+Bachelor's thesis\\
+in the field of Cognitive Science\\
+\end{center}
+\vspace{5\baselineskip}
+\begin{flushright}
+The thesis was written under the supervision of\\
+dr hab. Justyna Grudzińska-Zawadowska\\
+and dr Łukasz Kobyliński\\
+Faculty of Philosophy\\
+University of Warsaw\\
+\end{flushright}
+\vspace{2\baselineskip}
+\begin{center}
+Warsaw, December, 2022
+\end{center}
+\pagebreak
+
+\begin{center}
+\textbf{Summary}
+\end{center}
+
+\noindent This thesis discusses a method for combining different linguistic representations in order to create an automatic inflection system for complex phrases in Polish. First the main motivation for such a system is elucidated: the use of automatic inflection for template-based natural language generation. Subsequently the resources used, are introduced: NKJP tagset for representing the morpology of Polish words, and PDB UD dependency grammar for representing the syntactic structure of phrases. In the third section, the implementation details are fleshed out. The final solution recurrently decomposes the task of inflecting phrases, with the use of dependency trees. The base case is the inflection of individual words, which is approached twofold: by using a dictionary, and a \textit{seq2seq} neural network. The recurrent algorithm invokes these methods for each node in the tree, with the parameters of each inflection being calculated based on using dependency relations as a proxy representation of accommodation relations. Evaluation of these methods on some handcrafted test cases, and a bigger dataset is provided. Some examples of applying the tools in a template-based NLG environment are shown. A handful of extensions of the system is discussed: basic support for particular derivation mechanisms, phrase lemmatization, and extensions into other languages.
+
+\vspace{\baselineskip}
+\begin{center}
+\textbf{Keywords}
+\end{center}
+NLP, inflection, dependency grammar, morphology, NLG, machine learning
+
+\vspace{5\baselineskip}
+\begin{center}
+\textbf{Title of the thesis in Polish language}
+\end{center}
+Wykorzystanie drzew zależnościowych w automatycznej odmianie złożonych wyrażeń w języku polskim
+\pagebreak
+\tableofcontents
+
+\section{Introduction}
+\label{introduction}
+Natural Language Processing (\textbf{NLP}) is a burgeoning field lying on the intersection of linguistics, traditional computer science, and artificial intelligence. The first forays into this domain can be traced back to Chomskyan revolution. These efforts largely followed what can be called the 'classical' paradigm of NLP: they were based on formal models of natural languages, and algorithmic methods of manipulating data. Over time, a more quantity-oriented approach emerged, which used statistical methods, in order to construct more flexible means of handling language data. This latter 'statistical' approach gained much traction, with the growing popularity of machine-learning in the previous decade. 
+
+An important disadvantage of the statistical paradigm, consists in its lack of explanatory power. Machine learning models, such as neural networks, are often just ensembles of equations with billions of numerical parameters, which after an arduous process of training happen to converge on producing the right answer with satisfying frequency. The ways of interpreting why, and how, these models happen to acquire capabilities of performing complex linguistic tasks, are very limited\footnote{Although there is a growing interest in ways of making these models interpretable, which will likely be necessary, for widespread adoption in everyday life.}. However these are mostly omissions with respect to theoretical virtues, while most works in the field are driven by practical concerns, and so the criteria for evaluating them are more pragmatic in nature.
+
+In many cases the applications of NLP techniques are very specific, and therefore so are the criteria of evaluation, and the theoretical significance of researching these problems can be marginal. So is the case perhaps in the domain of Natural Language Generation (\textbf{NLG}). In general, the task of producing creative, relevant, and both syntactically and semantically correct language may seem to have even philosophical implications. But in many real-world applications, creativity is of little importance, and can even be a hindrance. A black-box, uninterpretable model, can also be unpredictable (this, one might argue, being the crux of its creativity), which can, and has, lead to negative outcomes. A spectacular example comes from Microsoft's Tay fiasco in 2016. A chatbot which learned in a continuous feedback loop of interactions with people via \textit{Twitter}, was hijacked within $24$ hours of going public, and turned into a prolific disseminator of rather unparliamentary opinions. A more mundane scenario, of natural language generation going awry, may occur in any interaction, in which a misleading message produced by a system may lead to people making costly decisions, e.g. in the financial, or medical domain.
+
+Designing interfaces (i.e. mechanisms for efficient communication between agents, such as humans and machines) is a field of work, in which pragmatic concerns reign supreme over theoretical ones. For many of our interactions with the world (e.g. ones depending on precise spatial dimensions) visual or tactile modalities are inescapable. But there are many other cases, where it simply is more convenient to do things with our words, as opposed to with our hands. This is because the structures inherent in language (e.g. quantifiers) can be more attuned to these tasks (e.g. querying databases) than purely sensory ways of organizing data. A mature Natural Language User Interface (\textbf{NLUI}), capable of substituting other means of interfacing (e.g. buttons, menus, lists and forms, used in GUIs and web interfaces), will inevtiably have to involve robust NLG capabilities.
+
+\subsection{Motivation}
+\label{sec:motivation}
+This thesis is concerned with a particular method (using dependency grammar) of automatic inflection, which extends it to a particular application (complex phrases). Its ultimate purpose is to aid in Natural Language Generation for a particular language (or class of languages). It is therefore desirable, that applying this method in NLG systems, will lead to improving their capabilites. It has been argued above that this can be done irrespectively of the theoretical significance of this method, e.g. whether it mimics in any way language generation in humans, or whether the linguistic structures used in it, come from a true theory of grammar. In general, the criteria for evaluation of an NLG system can be enumerated as follows:
+
+\begin{enumerate}
+\item \textbf{Semantical correctness}: the messages generated by the system should express the desired intents well.
+\item \textbf{Syntactical correctness}: the messages generated by the system should satisfy syntactical criteria of well-formedness of the language.
+\item \textbf{Flexibility}: the system should be able to express the full breadth of intents needed by its application. 
+\item \textbf{Control}: the system should be predictable, and stable, to prevent possible risks associated with its application.
+\end{enumerate}
+
+None of these criteria are easy to quantify, and they might even involve some trade-offs. For example increasing \textbf{flexibility} will tend to reduce the \textbf{controlability} of the system, as the number of possible intents to express grows. It will be argued, that the solutions provided as part of this thesis, will increase the flexibility of NLG applications, while not damaging any of the other criteria.
+
+\subsection{Template-based NLG in English}
+As with other problems in the domain of NLP, research into NLG has so far been concerned mostly with English. The first notable example of such a system is \textit{Eliza}\cite{weizenbaum:1966}, the chatbot-therapist. Eliza was in essence just a clever trick, but she managed to fool her contemporaries into thinking that they were talking to a genuine human being. The Natural Language Understanding (\textbf{NLU}) and NLG were intertwined as two sides of the same mechanism --- transformation rules. These rules converted input messages into output by means of extracting certain phrases, and then pasting them into predefined templates. The means of extraction were syntactical in nature: by exploiting rigid word order of English, Eliza was able to, for example, extract the predicate, and then use it in her own response. Consider the following rule:\\
+
+\textit{Upon receiving a message of the form:} \textsc{\textbf{0} you \textbf{1} me}\\
+
+\textit{Reply with:} \textsc{what makes you think I \textbf{1} you}\\
+%cite Paper
+
+The numbers in the templates signify slots to be filled by expressions of arbitrary length. In the example above, slot \textbf{1} will be filled with whatever words occur between \inlinegloss{you} and \inlinegloss{me}. Because English has \textbf{SVO} order, in most cases we may reason as follows. The subject role can be assigned to \inlinegloss{you} and the object role to \inlinegloss{me}, and whatever words lie between these, have to fill the verb (predicate) role, which expresses a relation, in which \inlinegloss{you} (Eliza) is the active, and \inlinegloss{me} (the interlocutor) is the passive part. This is enough semantic information, to ensure that the reply, generated by extracting whatever fell into slot \textbf{1}, and putting it in the response template, will not be out of place. For a more concrete example, providing the following as input:
+
+\gloss{It seems to me that you don't respect me.}
+
+\noindent will provoke the response:
+
+\gloss{What makes you think I \textbf{don't respect} you?}
+
+The text produced is semantically relevant, and syntactically correct.  Template based approaches worked well for many English applications, because phrases could simply be inserted into sentences, like building blocks, as long as they are put in a place that fits their grammatical role. 
+
+\subsection{Template-based NLG in Polish}
+The success of simple template-based NLG in English is rooted in the relative simplicity of morphological structure of the language. But this is not true, of many other languages, in which a relaxed word order is balanced by rich morphological structure. In such languages, there is often no one proper place to insert a word into a sentence, even if it is known in advance which grammatical role it is supposed to fill. Instead, the grammatical role is partially reflected in the morphology of the word, and so the word must be inflected for the sentence to be well formed. In these cases words can not simply be taken from one context, and inserted into gaps in another, as this might produce ungrammatical sentences.  For instance, the nominative case is often associated with the subject role, whereas accusative case corresponds to the object of the sentence. A template based approach would have to respect these constraints.
+
+All of this is true of Polish, with its comparatively rich case system, grammatical gender, and conjugation paradigms{\footnote{As a rough measure of the scale of the problem, the biggest morphological dictionary for Polish --- sgjp.pl --- has 7.55 orthographically different forms for each nominal lexeme, and 26.47 forms for each verbal lexeme.}}. Consider attempting to capture the same transition for Polish:
+
+\gloss{Wydaje mi się, że [Ty] mną gardzisz.}
+
+\gloss{Dlaczego myślisz, że Tobą \textbf{gardzę}?}
+
+Apart from difficulties in capturing all the possible word orders, which amount to the same meaning (cf. \inlinegloss{Wydaje mi się, że gardzisz mną.}), what is expressed by a distinct pronoun form in English (\inlinegloss{You}), in Polish can be expressed by just conjugating the verb (\inlinegloss{gardzić} $\rightarrow$ \inlinegloss{gardzisz}), making the pronoun redundant. This makes classifying the input harder, but even if that is achieved, and the verb phrase is extracted, inserting it into the template as is, would produce ungrammatical text.
+
+\gloss{*Dlaczego myślisz, że Tobą \textbf{gardzisz}?}
+
+It is common for Polish speakers, to interact with interfaces which do not take morphology into account. The messages generated in this way sound artificial, and are often taken as signaling that one is interacting with a computer system instead of a real person. For this reason, designing seamless natural language interfaces, such as dialogue agents requires a morphology-sensitive framework.
+
+Nevertheless it is a mistake to think, that this is just a matter of avoiding linguistic awkwardness. Grammatical systems and rules each have their purpose in communication, and so is the case with the case system, and grammatical gender (e.g. for anaphora resolution) which are present in Polish. Being able to satisfy the constraints imposed on language by these systems, is crucial if NLUIs are to become more than a technological novelty.
+
+\subsection{Extension into complex phrases}
+Suppose there was a method of solving the issues outlined above. First of all, that there was a sufficiently robust system for NLU to tackle issues of word order, and recognizing which words should be extracted. Second of all, that given these extracted words, we knew what was the desired form of the word, and had the means of inflecting the word into that form. So far this does not translate into an ability to work with larger phrases as opposed to individual words. And yet there is nothing about the templates above, which would limit the complexity of the structure of whatever is put inside the gap. Consider, as an example, a nominal phrase:
+
+\gloss{Biały nóż od Wojtka}
+
+which is to be inserted into the following template:
+
+\gloss{Piotr wystraszył go \gap}
+
+The verb \inlinegloss{wystraszyć} requires that its indirect object be in the \textit{instrumental} case, so ignoring inflection altogether will leave us with the ungrammatical:
+
+\gloss{*Piotr wystraszył go biały nóż od Wojtka}
+
+Inflecting the words is necessary, but treating them independently will also produce an ungrammatical result:
+
+\gloss{*Piotr wystraszył go białym nożem od Wojtkiem}
+
+What is instead necessary, is to inflect the phrase as a whole, taking into account its grammatical structure. Phrases are, by definition, not mere assemblages of words, but instead exhibit internal syntactical structure. In Polish, these structures are reflected in morphological features especially, and so a problem arises, which is entirely alien to Enlgish NLP. Only by achieving a solution to this problem, can we obtain the grammatically correct version:
+
+\gloss{Piotr wystraszył go białym nożem od Wojtka}
+
+\subsection{The aim of this work}
+This thesis is concerend with describing a method for accurately inflecting Polish phrases, for the purposes of template based generation. The aim is to implement a procedure, which will respect syntactical constraints, and be flexible with respect to possible applications. The implementation will be embedded within standard contemporary NLP setting: a component to a model in a popular Python library\footnote{The code for the implementation is available at \url{https://github.com/ryszardtuora/flexer_thesis}.}. 
+
+
+\section{Theoretical framework}
+\label{theoretical framework}
+In \autoref{introduction} it has been argued, that in many works in the domain of NLP, theoretical considerations are secondary to pragmatic concerns. Regardless, it will be argued here, that in the problem at hand, certain theoretical tools will be of great use. It should however be observed, that these theories are of use here, in virtue of being embodied in particular resources and tools for working with Polish language, as opposed to their more abstract characteristics.
+
+It has already been remarked above, that using complex phrases in template-based NLG, should take account of their syntactical structure. It will now be fleshed out what sort of structures are of particular importance here, and how these can be processed computationally.
+
+The traditional (`received-view') account of Polish grammar, mentions two types of syntactic relations: \begin{itemize}\vspace{-5pt}
+\item \textbf{agreement} --- two grammatically related words are made to exhibit the same value of a certain grammatical attribute.\vspace{-5pt}
+\item \textbf{governance} --- one word forces some grammatical phenomenon on another, e.g. inflection of its argument into a particular form, or introduction of an auxillary word.\vspace{-5pt}
+
+\end{itemize}
+
+In the standard contemporary account of Polish grammar~\cite{saloni:2012} both of these are subsumed into one category of \textit{syntactical accommodation} --- understood as an assymetric relation, defined, for the sake of generality, between \textit{phrases}, as opposed to \textit{individual words}. The concept of syntactical accommodation is then divided into morphological accommodation, and nonmorphological accommodation, the latter collapsing further into lexical accommodation\footnote{E.g. obligatory introduction of particular prepositions by certain verbs.}, and purely syntactical nonmorphological accommodation\footnote{E.g. requirement of a particular structure of a phrase: forcing agglutination of the \inlinegloss{--ś} form to a pronoun, or requiring clauses as opposed to nominal phrases}. 
+
+In this particular application, the most important constraint to take into account is, is morphological accommodation. In template-based NLG, the phrases to be inserted usually fill the role of arguments of their embedding constructions. If these embedding constructions impose any lexical requirements, these are usually with respect to morphologically invariant words, such as prepositions, and so these can just be incorporated into the templates statically, before any dynamic generation. The same argument applies to lexical accommodation within the phrases to be inflected. Provided the phrases are well formed, it can be assumed, that all lexical constraints have been satisfied. On the other hand, the concept of purely syntactical nonmorphological accommodation applies to rather rare, and subtle phenomena, which are usually outside the scope of NLG.
+
+A mechanism for working with morphological relations will have to interface with two types of information. First of all it will have to work with morphological features of individual words, and so it will have to be able to represent these \textit{via} computational formalisms for morphology. Second of all, for the manipulation of morphological features to be sensitive to syntactical structure, an interface with a grammatical formalism will be needed. These two subjects will be discussed in the following two subsections.
+
+\subsection{Morphological framework for Polish}
+The most important criterion for choosing a theoretical framework for a project in NLP, is the availability of tools and resources.~\cite{saloni:2012} was the theoretical background against which the biggest resource for Polish --- The NKJP\cite{prz:etal:11:ed}\footnote{\url{http://nkjp.pl/}} corpus --- was created. The tagset devised for description of Polish morphology used in this corpus, was subsequently developed to form the basis of the most popular tool for morphological analysis in Polish: \textbf{Morfeusz~2}\cite{kieras:2017}, and the associated SGJP\footnote{\url{http://sgjp.pl/}} dictionary. A more recent formulation of this framework is~\cite{wolinski:2019}. All these resources are considered standard by NLP practicioners in Polish, and so they are a natural choice for this project as well.
+
+This tagset (henceforth referred to as the \textbf{NKJP tagset}) is a set of grammatical categories, each paired with a set of their possible values. Each form can then be associated with a mapping from the set of grammatical categories to the particular values it exemplifies (its morphological \textit{tag}, or \textit{profile}). This mapping will always be incomplete, i.e. there is no word in Polish, which would exhibit a value for all categories. Usually the grammatical class of the word, determines which categories it will exemplify (e.g. nouns can be inflected with respect to case, and number, but have a fixed gender and do not exhibit mood or degree). Because the names of the values are unique, there is no ambiguity in omitting the category names, and just listing the values, separated with a separator(``:''). As these features are usually ordered according to a predefined order, it is often described as a positonal tagset. Therefore a tag in the NKJP tagset might look like this:
+
+\vspace{10pt}\inlinegloss{jasny} --- \textsc{adj:sg:acc:m3:pos}\vspace{10pt}
+
+\noindent The first position specifies the grammatical class (here, an adjective), and the subsequent ones define its number, case, gender, and degree. The full tagset, with examples of values for each category is specified in \autoref{tagset_table}.
+
+\begin{table}[H]
+    \scriptsize
+    \centering
+    \begin{tabular}{|l|l|l|}
+        \multicolumn{3}{l}{\textbf{Number: (2 values)}}
+       \\ \hline
+	    singular & sg & \textit{oko}\\ \hline
+	    plural & pl & \textit{oczy}\\ \hline
+        \multicolumn{3}{l}{\textbf{Case: (7 values)}}
+       \\ \hline
+	    nominative & nom & \textit{woda}\\ \hline
+	    genitive & gen & \textit{wody}\\ \hline
+	    dative & dat & \textit{wodzie}\\ \hline
+	    accusative & acc & \textit{wodę}\\ \hline
+	    instrumental & inst & \textit{wodą}\\ \hline
+	    locative & loc & \textit{wodzie}\\ \hline
+	    vocative & voc & \textit{wodo}\\ \hline
+        
+        \multicolumn{3}{l}{\textbf{Gender: (5 values)}}
+       \\ \hline
+	    human masculine (virile) & m1 & \textit{papież, kto, wujostwo}\\ \hline
+	    animate masculine & m2 & \textit{baranek, walc, babsztyl}\\ \hline
+	    inanimate masculine & m3 & \textit{stół}\\ \hline
+	    feminine & f & \textit{stuła}\\ \hline
+	    neuter & n & \textit{dziecko, okno, co, skrzypce, spodnie}\\ \hline
+
+	    \multicolumn{3}{l}{\textbf{Collectivity\tablefootnote{\textit{Przyrodzaj} is the working name for this category (per \cite{kieras:2021}), there is no established translation as of yet. It limits which form of a numeral, a noun can be associated with in constructions.}: (2 values)}}
+       \\ \hline
+	    collective & col & \textit{dwoje, dzieci}\\ \hline
+	    noncollective & ncol & \textit{dwa, okna}\\ \hline
+	    plurale tantum & pt & \textit{drzwi, wymiociny}\\ \hline
+        
+        \multicolumn{3}{l}{\textbf{Person: (3 values)}}
+       \\ \hline
+	    first & pri & \textit{bredzę, my}\\ \hline
+	    second & sec & \textit{bredzisz, wy}\\ \hline
+	    third & ter & \textit{bredzi, oni}\\ \hline
+        
+        \multicolumn{3}{l}{\textbf{Degree: (3 values)}}
+       \\ \hline
+	    positive & pos & \textit{cudny}\\ \hline
+	    comparative & com & \textit{cudniejszy}\\ \hline
+	    superlative & sup & \textit{najcudniejszy}\\ \hline
+        
+        \multicolumn{3}{l}{\textbf{Aspect: (2 values)}}
+       \\ \hline
+	    imperfective & imperf & \textit{iść}\\ \hline
+	    perfective & perf & \textit{zajść}\\ \hline
+        
+        \multicolumn{3}{l}{\textbf{Negation: (2 values)}}
+       \\ \hline
+	    affirmative & aff & \textit{pisanie, czytanego}\\ \hline
+	    negative & neg & \textit{niepisanie, nieczytanego}\\ \hline
+        
+        \multicolumn{3}{l}{\textbf{Accentability: (2 values)}}
+       \\ \hline
+	    accented (strong) & akc & \textit{jego, niego, tobie}\\ \hline
+	    non-accented (weak) & nakc & \textit{go, -ń, ci}\\ \hline
+        
+        \multicolumn{3}{l}{\textbf{Post-prepositionality: (2 values)}}
+       \\ \hline
+	    post-prepositional & praep & \textit{niego, -ń}\\ \hline
+	    non-post-prepositional & npraep & \textit{jego, go}\\ \hline
+        
+        \multicolumn{3}{l}{\textbf{Accommodability: (2 values)}}
+       \\ \hline
+	    agreeing & congr & \textit{dwaj, pięcioma}\\ \hline
+	    governing & rec & \textit{dwóch, dwu, pięciorgiem}\\ \hline
+        
+        \multicolumn{3}{l}{\textbf{Agglutination: (2 values)}}
+       \\ \hline
+	non-agglutinative & nagl & \textit{niósł}\\ \hline
+	agglutinative & agl & \textit{niosł-}\\ \hline
+        
+        \multicolumn{3}{l}{\textbf{Vocalicity: (2 values)}}
+       \\ \hline
+	vocalic & wok & \textit{-em}\\ \hline
+	non-vocalic & nwok & \textit{-m}\\ \hline
+        
+        \multicolumn{3}{l}{\textbf{Fullstoppedness: (2 values)}}
+       \\ \hline
+	with full stop & pun & \textit{tzn}\\ \hline
+	without full stop & npun & \textit{wg}\\ \hline
+    \end{tabular}
+\caption{\label{tagset_table} The set of all grammatical categories, and their possible values, adapted based on \url{http://nkjp.pl/poliqarp/help/ense2.html} and~\cite{kieras:2021}}
+\end{table}
+
+\subsection{Dependency grammar}
+With respect to syntactic analysis, there is a wide range of linguistic formalisms. Initially, the constituency grammar paradigm, championed by Chomsky was more popular. This approach analyses a sentence as recurrently composed of constituent phrases. It has already been remarked above, that~\cite{saloni:2012} favoured defining syntactical accommodation as occuring between phrases, as opposed to individual words. This is because of the examples like the following:
+
+\gloss{Zagniewani Ania i Maciej poszli}
+
+\noindent both the adjective \inlinegloss{zagniewani} and the verb \inlinegloss{poszli} occur in the plural number, despite the nouns \inlinegloss{Ania} and \inlinegloss{Maciej} appearing in the singular form. This is because they enter into the grammatical relation of accommodation with other words in the example only after forming the coordination \inlinegloss{Ania i Maciej} which can be said, to exhibit the plural number.
+
+However, presently, mainly because of technical reasons, a different annotation scheme is far more popular in NLP --- dependency grammar. This paradigm analyses a sentence as a tree, the nodes of which are individual words, connected by arcs (dependency relations). The arcs can be labeled, to distinguish different types of relations, e.g. that an adjective modifies a noun, or that a noun is the subject of a verb. Both the exact guidelines for drawing arcs (which words are connected with each other, and which way the arc goes) and the set of labels, are the subject of a scientific discussion. At the moment the most well established set of guidelines, is the Universal Dependencies (\textbf{UD}) methodology\footnote{\url{https://universaldependencies.org/}}. UD is an interlinguistic project, aiming to capture the syntax of all languages in one framework of 37 types of relations. The topology of the syntactic trees is constructed according to a broadly `semantic' methodology: for a pair of connected words, the one which more closely resembles the semantics of the pair taken as a phrase, is chosen as the head. This means, among other things, that function words will generally be subordinated to content words they come in relations with\footnote{An opposite methodology is employed in \textbf{SUD} \url{https://surfacesyntacticud.github.io/}.}.
+
+The approach chosen here, is to approximate the representation of accommodation with the use of syntactical analyses provided by dependency grammar in the UD annotation scheme (in particular, in the vein of the largest UD treebank for Polish --- \textbf{PDB}\cite{wrob:18}). The main reason for this, is accessibility of guidelines documentation, corpus data, and also the predominance of dependency grammar oriented parsers in the NLP toolset. This is true for Polish, but also for many other languages, which means that the algorithms described below, can also be applied to other languages, as long as a similar account of morphology will be provided. Some dependency arcs will be taken to "carry" morphological accommodation with respect to particular attributes, based on their type. For example the \textsc{amod} (adjectival modifier) relation, will usually involve accommodation of gender, case, and number between the head and the dependent word.
+
+\begin{figure}[H]
+\centering
+\begin{dependency}[edge slant=0]
+\begin{deptext}[column sep=0.5cm]
+Zagniewani \& Ania \& i \& Maciej\& poszli \\
+\end{deptext}
+\deproot{5}{ROOT}
+\depedge{4}{3}{cc}
+\depedge{2}{1}{amod}
+\depedge{2}{4}{conj}
+\depedge{5}{2}{nsubj}
+\end{dependency}
+\caption{A dependency analysis of the example above, according to the UD guidelines. Note that in UD the coordination is headed by one of its conjuncts, as opposed to the \inlinegloss{i} conjunction.}
+\end{figure}
+
+To a certain extent, dependency analyses can offer similar information to constituent ones. Constituency phrases usually have a central word, with which they share many of their features. In many cases the subtree spanned by the word in the dependency analysis of the same sentence will overlap with the constituency phrase. But the emergent features, such as the plural number in the example above, is not something that can be captured in a dependency analysis. Therefore, using the dependency grammar as a formalism for representing syntax, should not be taken as a serious proposition in linguistics, but rather as a pragmatic proxy for the actual accommodation relations, to be used in an NLP application.
+
+\subsection{Scope of interest}
+\label{scope of interest}
+Given the theoretical introduction, an outline of linguistic phenonomena which will be captured in the final implementation can be stated:
+\begin{itemize}
+	\item Nominal phrases: \gloss{Biała flaga z papieru}\vspace{-10pt}
+	\item Phrases with numerals: \gloss{Czworo małych dzieci}\vspace{-10pt}
+	\item Adjectival phrases: \gloss{Pochodzące z Lazurowego Wybrzeża}\vspace{-10pt}
+	\item Coordinations: \gloss{Skórzany but i jeansowe spodnie}\vspace{-10pt}
+	\item Proper names: \gloss{Uniwersytet Papieski Jana Pawła II w Krakowie}\vspace{-10pt}
+\end{itemize}
+
+These types of phrases account for the majority of applications in template-based NLG. It should be noted, that this excludes most verbal constructions. Because these usually form the centers of sentences, they also tend to form the backbone of templates, with their arguments being left to be filled as empty slots. Therefore such a limitation is not very troublesome in standard NLG solutions. Exclusion of these constructions is an important simplification, because in Polish they tend to involve the so called `analytic mode' of inflection, which involves using auxiliary words, or agglutinants. The assumption that underlies this work, is that inflection of a phrase does not alter the number of segments within the phrase. This is mainly because adding mechanisms for adding or subtracting words, would have to be very language specific, and language-agnosticity is one of the desiderata for this system.
+
+\section{Implementation}
+Implementing the ideas discussed above requires embedding the inflection functionalities in an environment, in which information about the morpology and the grammatical structure of phrases is available. Moreover, these features have to be specified in an annotation scheme, which follows the assumptions made above, i.e. the morphological information has to conform to the NKJP tagset, and the grammatical structure has to follow the guidelines of the UD dependency grammar. Because the availability of tools was one of the main reasons for choosing the formalisms, a ready-made pipeline is available in the form of the \textit{pl\_nask} model\footnote{http://mozart.ipipan.waw.pl/~rtuora/spacy/} to the popular NLP library: \textbf{spaCy}. This model includes three components of interest: \begin{itemize}
+	\item \textbf{tagger} trained on NKJP, which assigns a morphological tag to each form in the text.
+	\item \textbf{lemmatizer} based on a dictionary, which pairs each form in the text with its lemma --- a representative form of the lexeme it belongs to.
+	\item \textbf{dependency parser} trained on PDB, which assigns a dependency head and relation label to each token in a text (this is also used for segmenting text into sentences).
+\end{itemize}
+\noindent These components will be used to achieve a representation of the morphology and structure of the phrase which is to be inflected, and put into a template.
+
+\subsection{Task description}
+A distinction is often made between \textbf{inflection}: the task of finding a form of the lexeme which satisfies the desired morphological profile, given its lemma, and \textbf{reinflection}: where the base form can be any form belonging to the lexeme. If the morphological profile is incomplete (i.e. it is satisfied by more than one form of the lexeme), reinflection will also be taken to involve completion of the profile in accordance with the base form, i.e. finding the form which satisfies the morphological profile \textit{and} is closest to the base form (e.g. by preserving its grammatical case). Since the final task, is inflecting phrases, which possess internal structure (and so in most cases are not composed purely of forms identical to their lemmas), it will involve reinflection, but we will not observe this terminological distinction strictly. This is because given a reliable tagger and lemmatizer, reinflection can be reduced to inflection of the lemmatized form, with provisions based on the current tag.
+
+The basic case of the task is reinflecting a single word. Given a word \symbolic{w} (not necessarily identical to its lemma \symbolic{l}), with a particular morphological profile \symbolic{p} --- a set of morphological features --- and the target set of morphological features \symbolic{t}, the goal is to find a form of the same lemma \symbolic{w*} which satisfies all the features from \symbolic{t} \textit{and} is associated with the morphologically closest profile \symbolic{p*}. It should be noted that in many cases \symbolic{t} will not include values for all the morphological attributes, which means, that remaining features in \symbolic{p} should be left unaltered\footnote{And this is the sense of proximity, implied in "morphologically closest". It should be observed that sometimes this is not possible, because certain feature combinations might be illegal. This is why a distance metric, as opposed to a hard constraint of satisfying remaining features will be used below.}. Such is the case e.g. when it is our goal to obtain a plural form of a word, without altering its grammatical case. 
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+  \matrix (m) [matrix of math nodes,row sep=2em,column sep=5em,minimum width=2em]
+  {
+	  & \symbolic{l}: \textsc{dobry} \\
+     \\
+     \symbolic{w}:dobremu & \symbolic{w*}:dobrych \\
+     \symbolic{p}:adj\colon sg\colon dat\colon m1\colon pos & \symbolic{p*}:adj\colon pl\colon acc\colon m1\colon pos \\};
+  \path[-stealth]
+    (m-1-2) edge [double] node [right] {\symbolic{t$`$}: $pl\colon acc\colon m1\colon pos$} node [left] {\textit{inflection}} (m-3-2)
+    (m-3-1) edge [double] node [below] {\symbolic{t}: $pl\colon acc$} node [above] {\textit{reinflection}} (m-3-2)
+    (m-3-1) edge [dashed,-] (m-4-1)
+    (m-3-2) edge [dashed,-] (m-4-2);
+\end{tikzpicture}
+	\caption{Inflecting \inlinegloss{dobry}, and reinflecting \inlinegloss{dobremu} into \inlinegloss{dobrych}. The degree and gender are carried over from the original morphological profile.} \label{fig:word_task}
+\end{figure}
+
+\subsection{Single word inflection}
+In what follows, two methods for inflecting individual words will be described: dictionary based inflection, and a neural network inflection mechanism. They can be considered to be functionally similar, as they fulfill the same role in the broader system, but their use cases will be quite disparate, as they differ substantially in their capabilities.
+
+\subsubsection{Dictionary based inflection}
+Inflection of a single word can be done by using an inflection dictionary as follows. First the set of all forms associated with the lemma\footnote{This lemma is available thanks to the lemmatizer.} of the word \symbolic{w} is recovered, and filtered down to forms which satisfy all the features from target profile \symbolic{t} (see \autoref{tab:filtering_lexeme}). Secondly, the list of these forms is sorted by the size of the symmetric set difference defined on morphological profiles of the base form\footnote{Which is available thanks to the tagger.}, and each of the candidate forms. Lastly, the top rated word is returned as the form which satisfies the desired morphological profile, and is the closest to the original form. In this implementation Morfeusz 2~\cite{wol:14} was used for interfacing with the SGJP dictionary.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lll}
+& m1 & others\\
+\midrule
+pos      &   \textbf{dobrych}:4 &  dobre:6 \\
+com      &   lepszych:6 &   lepsze:8 \\
+sup      &   najlepszych:6 &   najlepsze:8 \\
+\bottomrule
+\end{tabular}
+\caption{The set of all candidate forms belonging to the lexeme for "dobremu": the adjective \textsc{dobry} (\textit{good}), which has been narrowed down to forms satisfying the target morphology \textit{t} (\textit{pl:acc}). This leaves two attribute values to still be selected: degree (rows) and gender (columns). The morphologically closest form (in bold) is chosen based on the size of the symmetric difference between profiles (given after the colon), in this case the profile closest to the original \textsc{adj:sg:dat:m1:pos} is in \textsc{m1} gender and \textsc{pos} degree:}  
+\label{tab:filtering_lexeme}  
+\end{table}
+
+\begin{listing}[htbp]
+\inputminted[linenos,tabsize=2,breaklines]{Python}{dict_flex_snippet.py}
+\vspace{-10pt}
+\caption{The dictionary based inflection functions.}
+\label{lst:dict_flex}
+\end{listing}
+
+In \autoref{lst:dict_flex} one can see two functions, adapted from their original implementation as methods of a \mintinline{Python}{Flexer} class object. \mintinline{Python}{tag_to_feats} converts a tag to a set of values for grammatical attributes. It can optionally enrich the tags with default values for some attributes (the purpose of this functionality will be explained in \autoref{derivation}). This function is used for converting from original positional tag string representations, to sets of strings representing features. \mintinline{Python}{dict_flex} is then used to list all the possible realizations of the lexeme associated with the \mintinline{Python}{lemma} argument, and subsequently that list is narrowed down to forms associated with feature sets being supersets of the target feature set. Afterwards this list is ordered according to the numerosity of symmetrical difference with the original tag, in order to find the morphologically closest form. The first and second arguments to the \mintinline{Python}{dict_flex} function, are provided (in the context of the full application) by the lemmatizer and tagger respectively, based on the user input, the third is given by the user themselves. As a result, inputting \mintinline{Python}{"dobremu", "adj:dat:sg:m1", "pl:acc"} as arguments will yield the desired output: \inlinegloss{dobremu}.
+
+\subsubsection{Neural inflection}
+A \textit{sequence-to-sequence} neural network will now be described, that attempts to capture the same capability of inflecting individual words. A dictionary based solution will generally be superior, as it uses a resource manually curated with respect to linguistic correctness. Nevertheless it is completely unusable for working with lexemes which are outside the dictionary. This encompasses two classes of words: neologisms (which have not yet been recognized by the lexicographers), and domain- and idiolect-specific vocabulary (which is outside the scope of general purpose lexicons). These linguistic phenomena, although often exhibiting non-standard phonological and orthograpical mechanisms (e.g. loanwords or humorous word formation), are in most cases quite regular in their inflection patterns. This is important because a generative solution (such as a neural network) will hardly be able to infer irregular inflection patterns, but generally has no explicit limitations with respect to the input it can handle.  Generative methods of automatic inflection have been the subject of extensive study in the previous years\footnote{Cf. the SIGMORPHON shared tasks~\cite{cotterell-etal-2018-conll},~\cite{cotterell-etal-2017-conll} which have dealt with automatic inflection across a broad spectrum of languages.}, but they do not surpass a simple, dictionary based system, for the most common words. For these reasons a neural inflection method is mainly reccomended for words which are outside the dictionary.
+
+
+
+A sequence-to-sequence (or \textit{seq2seq}) neural network is a type of a recurrent neural network, which can take in, and output sequences of arbitrary length. It is composed of two components: an encoder, and a decoder. Normally the encoder is a recurrent neural network, which passes through all the timesteps of the input sequence, and condenses its representation into a single fixed length vector. Then a decoder takes in that vector as input, and produces steps of the output sequence by classifying over a fixed set of symbols until a special \textsc{END} token will be produced. In this application though, the decoder will not use a single vector representation of the input, but rather an \textit{attention} mechanism, which is able to selectively aggregate information from all the timesteps of the input sequence. All the hidden states of the encoder (as opposed to just the last one) are used, and passed in to a separate layer of the network, which outputs weights for each timestep. The final output of the attention layer, is a weighted average of all hidden states of the encoder.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=0.33]{neuro_2.png}
+\caption{Architecture of the neural network. It was loosely based on \cite{faruqui:2016:infl}} \label{fig:neuro}
+\end{figure}
+
+Attention\footnote{In this case in particular: an additive soft attention layer.} is important because it allows to represent a nontrivial correspondence between characters in the input sequence, and characters in the output sequence. Inflection in Polish is dominated by suffixes, with some prefixes (e.g. the negation \inlinegloss{nie-}, or the superlative prefix \inlinegloss{naj}). In a typical case most of the characters just have to be rewritten from the lemma, with some modifications to the ending. In the case of prefixes however, the mapping has to be shifted, and it is important for the network, to be able to learn these mappings. Another important mechanism in Polish is apophony (e.g. \inlinegloss{noga} $\rightarrow$ \inlinegloss{nodze}). The network has to learn these phonological patterns in order to be able to inflect words efficiently.
+
+\begin{figure}[H]
+\centering
+ \begin{tikzpicture}[ele/.style={}, node distance=5pt]
+	 \node[ele] (a1) {p};
+	 \node[ele] (a2) [right=of a1] {i};
+	 \node[ele] (a3) [right=of a2] {ę};
+	 \node[ele] (a4) [right=of a3] {k};
+	 \node[ele] (a5) [right=of a4] {n};
+	 \node[ele] (a6) [right=of a5] {y};
+
+	 \node[ele] (b4) [below=of a1] {p};
+	 \node[ele] (b3) [left=of b4] {j};
+	 \node[ele] (b2) [left=of b3] {a};
+	 \node[ele] (b1) [left=of b2] {n};
+	 \node[ele] (b5) [right=of b4] {i};
+	 \node[ele] (b6) [right=of b5] {ę};
+	 \node[ele] (b7) [right=of b6] {k};
+	 \node[ele] (b8) [right=of b7] {n};
+	 \node[ele] (b9) [right=of b8] {i};
+	 \node[ele] (b10) [right=of b9] {e};
+	 \node[ele] (b11) [right=of b10] {j};
+	 \node[ele] (b12) [right=of b11] {s};
+	 \node[ele] (b13) [right=of b12] {z};
+	 \node[ele] (b14) [right=of b13] {y};
+
+  \draw (a1) -- (b4);
+  \draw (a2) -- (b5);
+  \draw (a3) -- (b6);
+  \draw (a4) -- (b7);
+  \draw (a5) -- (b8);
+ \end{tikzpicture}
+	\caption{Character correspondence between \inlinegloss{piękny} and \inlinegloss{najpiękniejszy}}
+\end{figure}
+
+The inputs to the network are the one-hot encoded representations of each lowercased character in the word, and the full desired morphological tag. For the purposes of training the model, a morphological inflection dictionary can be used as a dataset. All the 7.5 million \textsc{(form, lemma, tag)} triples are extracted from the SGJP dictionary. \textsc{form} is the gold output expected from the network, whereas \textsc{lemma} and \textsc{tag} are passed in as input\footnote{This particular choice of training data is also the reason why the neural inflection system can not outperform the dictionary based method.}. This is an immense dataset, but it is very imbalanced, as the number of training examples per a particular inflection pattern does not in any way reflect its importance. Zipf's law states, that a word's use frequency is inversely proportional to its place in the frequency list. This entails, that the most frequent words vastly outnumber less popular ones in an average text, and yet in this dataset they are represented on par, with words of negligible frequency. Moreover, the most popular words, are much more likely to exhibit unique, and nonregular patterns of inflection. For example in \autoref{tab:pronoun}, a paradigm for the second person personal pronoun, a very common word, is shown. It it is immediately clear, that there is no single character which stays fixed in all of the forms, and there is a large degree of syncretism with respect to both cases, and accentability. 
+
+\begin{table}[H]
+\centering
+\begin{tabular}{c|c|c}
+& \multicolumn{2}{c}{\textbf{sg}}\\
+\hline
+&  \textbf{akc} & \textbf{nakc}   \\
+\hline
+nom & \multicolumn{2}{c}{ty}\\
+\hline
+gen &  ciebie &  cię   \\
+\hline
+dat &  tobie &  ci  \\
+\hline
+acc &  ciebie & cię  \\
+\hline
+inst &  \multicolumn{2}{c}{tobą}   \\
+\hline
+loc &  \multicolumn{2}{c}{tobie}   \\
+\hline
+voc &  \multicolumn{2}{c}{ty}  \\
+\end{tabular}
+\caption{Inflection paradigm for the second person pronoun \inlinegloss{ty}.}
+\label{tab:pronoun}
+\end{table}
+
+For this reason, a countermeasure was introduced, which aims to mirror the actual frequency of words. A frequency list calculated on the 300 million version of the NKJP corpus was used, to model the probability distribution of lexemes. Instead of using the dataset in its entirety (which would be prohibitively expensive computiationally), forms for each batch are sampled from the the dictionary, with the probability based on the frequency of their lemmas in the corpus. This however introduces another difficulty, as many of the most frequent words are also function words such as the coordinating conjunction \inlinegloss{i} or the preposition \inlinegloss{do}, and these tend to be morphologically invariant. For this reason, words which belong to invariant grammatical classes are penalized by having their frequency divided by $100$.
+
+The model has been trained for $150k$ batches, $256$ examples each. The final accuracy on the test set was $76.71\%$. In \autoref{lst:neuro_flex} some examples of the behavior of the system are shown. It is notable, that the system has no problem with inflecting neologisms, but still breaks down on common, yet irregular inflection patterns. It also appears that it has a preference for longer words, as they might provide more characters to make it clear, which inflection paradigm is most relevant in this case. In \autoref{lst:neuro_flex} some examples of the performance of the network are shown. Neither the neologisms\footnote{Taken mainly from the yearly \inlinegloss{Młodzieżowe słowo roku} contest.}, nor the domain vocabulary\footnote{Taken mainly from the automotive domain.} is present in the SGJP dictionary, but because these words follow regular and ordinary inflection patterns, the system is able to handle them successfully. Some capabilities with respect to basic derivation mechanisms (as specified in \autoref{derivation}) are also demonstrated. The failures of the system often exhibit features of repetition\footnote{This is actually a common feature of recurrent neural networks, as discussed in \cite{shcherbakov-etal-2020-exploring}.}, e.g. \inlinegloss{l-że-że-ksze}, sometimes the network is able to memorize the stem change, but is unable to apply the suffix properly, e.g. \inlinegloss{ludzi-ekom}. These limitations confine the neural inflection system, to the areas of application where a dictionary can not suffice.
+
+\begin{listing}[htbp]
+\inputminted[linenos,tabsize=2,breaklines]{Python}{neuro_examples_snippet.py}
+\caption{Neural inflection of a choice of words. First the lemma is given, then the desired target pattern, the system output is listed as a comment. For the SIGMORPHON task see \cite{pimentel-ryskina-etal-2021-sigmorphon}.}
+\vspace{-10pt}
+\label{lst:neuro_flex}
+\end{listing}
+
+\subsection{Inflecting phrases}
+
+Because phrases can be treated as if they possessed morphological features of their own\footnote{And, as observed above, sometimes these features are irreducible to the features of their components.}, the extension of the task can be specified equivalently. That is to say, that it might be said that the entire phrase \symbolic{w} exhibits a particular morphological profile \symbolic{p}, and one might want to inflect it into another profile \symbolic{p*}. 
+
+\begin{figure}[H]
+\begin{tikzpicture}
+\centering
+\footnotesize
+  \matrix (m) [matrix of math nodes,row sep=1em,column sep=4em,minimum width=2em]
+  {
+     \text{\symbolic{w:} krainie mlekiem i miodem płynącej} & \text{\symbolic{w*:} krain mlekiem i miodem płynących}\\
+     \symbolic{p:} subst\colon sg\colon dat\colon f & \symbolic{p*:} subst\colon pl\colon gen\colon f \\};
+  \path[-stealth]
+    (m-1-1) edge [double] node [below] {\symbolic{t:} $pl\colon gen$} (m-1-2)
+    (m-1-1) edge [dashed,-] (m-2-1)
+    (m-1-2) edge [dashed,-] (m-2-2);
+\end{tikzpicture}
+\caption{Example of a reinflection task for a complex phrase.}
+\label{fig:phrase_task}
+\end{figure}
+
+The subject of phrasal inflection is considerably less explored in literature, e.g. the interlinguistic SIGMORPHON task 2021 \cite{pimentel-ryskina-etal-2021-sigmorphon} contains multi-word inflection, but for Polish this is limited to the analytic mode of conjugation. The most detailed work for Polish is by~\cite{sav:09}, where a set of handwritten rules is used to tackle a very particular application of inflecting Polish toponyms. The technology used there is quite dated, and rules are specifically fitted to the domain of application, with no attempt at generalization. A more recent work for Czech template-based generation, is done by~\cite{DBLP:conf/inlg/DusekJ19}. In their experiments, a neural generator is trained to produce sequences of lemmata, interspersed with morphological tags. The inflection of individual words is then done by reference to an inflection dictionary. These sequences also contain delexicalized "gap-tokens" which correspond to complex names, and they use a separate RNN to select proper surface-form based on the context.
+
+\subsubsection{Task decomposition using dependency trees}
+Given the assumption that the input phrase is well formed, a dependency tree of the phrase can be used to represent it.
+
+\begin{figure}[H]
+\centering
+\begin{dependency}[edge slant=0]
+\begin{deptext}[column sep=0.5cm]
+krainie \& mlekiem  \& i \& miodem \& płynącej \\
+\end{deptext}
+\deproot[edge height=16ex]{1}{ROOT}
+\depedge{1}{5}{acl}
+\depedge{4}{3}{cc}
+\depedge{2}{4}{conj}
+\depedge{5}{2}{iobj}
+\end{dependency}
+\caption{Dependency tree of the example above.} \label{tree:task}
+\end{figure}
+
+\noindent It is also assumed that the phrase forms a tree, or that it forms \textit{one} subtree within its original context\footnote{The dependency analysis has to be provided by the dependency parser.}. If that is not the case, the task will be additionally decomposed into inflecting each of the independent subtrees individually. 
+
+In any case, the tree is rooted (or subrooted, if it comes from a bigger context, here this difference is irrelevant) at one of the tokens. This representation of the phrase, can then be used to recurrently decompose the task at hand. The base case, is that of inflecting individual words, and has already been discussed above. At each node in the tree, the task is then to inflect the word associated with that node (the base case), and then apply the same procedure to all the subtrees, spanned by each of its immediate children. For the analysis in \autoref{tree:task}, inflection of the phrase, will involve first inflecting the root \inlinegloss{krainie}, and then inflecting the subtree spanned by its sole child: \inlinegloss{płynącej} and so forth. In this context, it is crucial, that the solution for individual words is capable of tackling reinflection aswell, since keeping the unaccommodated features unaltered, is crucial to preserve other grammatical constraints.
+
+The challenge is then to infer the precise parameters for each of the base cases, i.e. what morphological profiles to apply to each of the nodes. A trivial solution would be to apply the same morphological profile to all the nodes. Instead, as has been specified above, dependency relations will be utilized to represent accommodation relations. In more precise terms: some dependency relations will be taken to entail accommodation, and so any alteration made with respect to one of the accommodating features of the head, will be transferred to the child. In effect, the morphological features will be propagated throughout the dependency tree, at each arc being filtered by the dependency type. Because dependency structures contain individual words, and not phrases, the morphological features to be propagated, will be features of the words themselves. In particular, it will be heuristically assumed, that the morphological profile of the root will be used to represent the morphological profile of the phrase as a whole.
+
+It should be remarked, that this procedure assumes, that inflection does not alter the number of words in the expression. This assumption is violated in some morphological mechanisms, such as reduplication, which is for example used to mark plural nouns in Indonesian. This is a flaw with respect to language-agnosticity of the system. In Polish, auxiliary words have to be introduced for inflecting many adjectives with respect to degree (e.g. the comparative form for \inlinegloss{cukrowy} is \inlinegloss{bardziej cukrowy}, and in verbal paradigms (the so called analytic mode of conjugation), which are outside of the main scope of application of this system. Both of these mechanisms could be accommodated, using dedicated cases in the algorithm, but this would make the algorithm itself language dependent in a structural way.
+
+\begin{figure}[H]
+\centering
+\begin{dependency}[edge slant=0, label style = {draw=white}]
+\begin{deptext}[column sep=0.5cm]
+\textbf{input:} \& krainie \& mlekiem  \& i \& miodem \& płynącej \\
+\\
+\hline
+\textbf{output:} \& krain \& mlekiem  \& i \& miodem \& płynących \\
+\end{deptext}
+\deproot[edge height=16ex]{2}{pl:gen}
+	\depedge{2}{6}{pl:gen}
+\depedge{5}{4}{-}
+\depedge{3}{5}{-}
+\depedge{6}{3}{-}
+\end{dependency}
+	\caption{Propagation of features along arcs. `-' signifies that no feature should pass down this arc to the child, or any of its dependents. This is crucial not to disturb the existing constraints, e.g. the fact that \inlinegloss{płynących} expects both \inlinegloss{mlekiem} and \inlinegloss{miodem} in the instrumental case, as opposed to genitive case passed in as the target case of the entire phrase.} \label{tree:propagation}
+\end{figure}
+
+The decision method for choosing which features to assign to each of the nodes could be modeled using a machine-learning approach, but a more traditional account, given in terms of rules, will be more customizable, and easy to understand and debug. Such a rule would have the form {$\textit{dep}~\rightarrow~attrs$} where {\textit{dep}} is some description of the dependency relation, and \textit{attr} represents the list of attributes, for which agreement\footnote{The same formalism could be used, to model some government relations, but that would require a much bigger problem space, i.e. one would have to specify actual values for each attribute, as opposed to enforcing propagation.} between the head, and dependent occurs. The simplest approach will be to represent dependency relations merely in terms of their dependency label in the annotation scheme, but more parameters could be added on, e.g. the grammatical classes of the head and subordinate words\footnote{These additions would make the ruleset much more complicated, as it would require working with a product of features, as opposed to just one dimension. It would also reduce the amount of data per rule, which is undesirable. On the other hand the simpler rule format ensures, that the number of rules is equal to the number of dependency labels. Moreover expending parameters by POS tags is not really guaranteed to bring new information, because many dependency labels correlate strongly with particular grammatical classes.}. As an example: to model the grammatical fact that adjectival modifiers of nouns agree with them with respect to number, case and gender, a rule {$\textit{amod} \rightarrow \textit{number:case:gender}$} can be introduced. This is the rule formalism that will be used in the rest of this work.
+
+\subsubsection{Rule induction}
+Although morphological agreement is a well studied phenomenon of the Polish language, it was not possible to find any existing rulesets formulated in terms of the chosen formalism. One might try to devise such a ruleset by hand, but it is an intricate, and error-prone process. Instead one might induce such a ruleset in an empirical fashion, i.e. by studying statistical regularities in a corpus containing both morphological, and dependency annotation. For each dependency label \symbolic{l} all the arcs labeled with \symbolic{l} are collected. For each attribute \symbolic{a}, the subset of arcs in \symbolic{l}, where both the head, and the child exhibit some value of \symbolic{a} is then obtained. Finally the proportion of cases where the value of \symbolic{a} is the same for both nodes of the arc is calculated. Because the aforementioned PDB treebank is also annotated with morphological information, it can be used for this purpose. Such a procedure assumes, that a high enough correlation of attribute values between dependents and heads, of a given dependency relation type, is good grounds for explaining it by reference to morphological agreement. 
+
+This procedure is clearly far from perfect, as there can be different systematic factors at play. For instance, it is often the case that nouns and their nominal modifiers agree with respect to number, but the reasons behind this are usually semantic, or pragmatic. Therefore, the procedure of rule induction, should be taken as a purely heuristic technique, which can be used to arrive at useful simplifications. As a result, we obtain a table of frequency of agreement given a dependency label of the relation, and the morphological attribute, like the one in \autoref{tab:agreement_stats}. From this table, we extract all the agreement rules, by selecting those combinations which exceed a predefined threshold of $\textbf{95\%}$.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lrrrrr}
+\centering
+{} &  number &  gender &    case &  person &  collectivity \\
+\midrule
+acl         &   \textbf{99.29} &   \textbf{99.18} &   \textbf{99.28} &         &               \\  
+advcl       &   75.44 &   49.87 &   69.74 &   69.93 &               \\  
+amod        &   \textbf{99.78} &   \textbf{99.81} &   \textbf{99.48} &         &               \\  
+amod:flat   &   \textbf{99.87} &   \textbf{99.73} &   \textbf{98.87} &         &               \\  
+appos       &   94.33 &   82.57 &   88.30 &         &         90.91 \\
+conj        &   83.62 &   60.57 &   \textbf{95.97} &   88.02 &         87.89 \\
+cop         &   \textbf{95.94} &   79.75 &         &   80.00 &               \\  
+csubj       &   74.61 &   10.94 &   45.45 &   91.11 &               \\  
+det         &   \textbf{99.36} &   \textbf{98.59} &   \textbf{98.31} &         &               \\  
+det:numgov  &   92.18 &   \textbf{97.67} &    1.00 &         &        \textbf{100.00} \\
+det:nummod  &  \textbf{100.00} &   \textbf{98.91} &  \textbf{100.00} &         &        \textbf{100.00} \\
+det:poss    &   \textbf{99.82} &   \textbf{99.70} &   \textbf{99.70} &         &               \\  
+fixed       &   \textbf{98.22} &   87.78 &   89.54 &         &        \textbf{100.00} \\
+flat        &   \textbf{98.00} &   92.92 &   92.77 &         &         \textbf{97.44} \\
+nmod        &   67.20 &   26.46 &   23.24 &         &         78.13 \\
+nmod:arg    &   61.34 &   27.99 &   27.34 &         &         85.\textbf{99} \\
+nmod:flat   &   81.85 &   55.66 &   65.78 &         &         88.89 \\
+nmod:poss   &   50.91 &    5.45 &    3.64 &         &               \\  
+nmod:pred   &  \textbf{100.00} &         &         &         &               \\  
+nsubj       &   94.40 &   88.82 &   61.18 &   \textbf{98.51} &         87.88 \\
+nsubj:pass  &   \textbf{98.27} &   \textbf{97.59} &   \textbf{99.13} &         &               \\  
+nummod      &   \textbf{99.59} &   \textbf{95.44} &   \textbf{97.18} &         &        \textbf{100.00} \\
+nummod:flat &  \textbf{100.00} &  \textbf{100.00} &  \textbf{100.00} &         &               \\  
+nummod:gov  &   \textbf{96.97} &   89.79 &    4.28 &         &         \textbf{98.67} \\
+obj         &   62.85 &   20.61 &   40.59 &   36.59 &        \textbf{100.00} \\
+obl         &   65.39 &   25.34 &   11.27 &   59.79 &               \\  
+xcomp       &   \textbf{95.48} &   85.26 &   14.29 &   33.33 &               \\  
+\bottomrule
+\end{tabular}
+\caption{Frequency of agreement (in percent) for a selection of morphological attributes (columns), between the dependency head and its children, given the dependency label (rows). The empty cells indicate that no observations were found, for which the child is related to the parent via the dependency relation and both tokens exhibit some value of the attribute. The pairs which have passed the threshold are in bold. The data has been abridged from the full table obtained from analysing PDB treebank.}\label{tab:agreement_stats}
+\end{table}
+
+Most results are as expected, e.g. adjectival modifiers (\textit{adj}) have very high ($\geq99\%$) rate of agreement with respect to number, gender, and case. Similarly \textit{det:poss} which corresponds mainly to possessive pronouns, scores very highly on the same attributes. On the other hand arguments such as direct objects (\textit{obj}), or nominal modifiers (\textit{nmod}) score significantly below the threshold on most attributes, as there is no syntactical basis for any substantial correlation. Nominal modifiers (\textit{nmod}), score very low on grammatical case, as this attribute is fixed, either in the genitive, or some other case \textit{via} a preposition. It should immediately be observed however, that some corrections need to be made by hand. For example:
+\begin{itemize}
+\item Appositions (\textit{appos}) such as \inlinegloss{siostra Małgorzata} would be expected to agree on both number (barely below the threshold) and case (much lower: $88.30\%$).
+\item Constructions marked with \textit{flat}, mainly so called named entities (proper names, e.g. \inlinegloss{Andrzej Duda}, but also names such as \inlinegloss{drugi grudnia} or \inlinegloss{ul. Jagiellońska 11}), failed to exceed the threshold for case.
+\item Although not a matter of syntactical fact, it would be useful to be able to pluralize coordinations (e.g. \inlinegloss{pies i kot} $\rightarrow$ \inlinegloss{psy i koty}), and this would require introducing a corresponding rule\footnote{To be more clear: there is no agreement with respect to number inside coordinations (otherwise constructions such as \inlinegloss{pies i koty} would have to be ungrammatical). A more elegant solution might have been to have a dedicated mechanism to decomposing coordination structures, and inflecting each conjunct independently.}. The same argument can be made for gender, and degree (not included in \autoref{tab:agreement_stats}).
+\item Nominal subjects (\textit{nsubj}) do not exceed the threshold with their heads with respect to number, or gender. This is in contrast to the received view about accommodation, but the reason for this disparity, are the UD annotation guidelines themselves (mainly with respect to subjects constituted by numeral phrases, coordinations, and also some constructions involving copulae). Nevertheless, as this applies to constructions involving verbs, it is beyond the main scope of this work.
+\end{itemize}
+
+\noindent In what follows, the manual corrections described above, will be assumed to be part of the ruleset, e.g. the rule for \textit{appos} will look like this: \textit{appos} $\rightarrow$ \textit{number:case}.
+
+\subsubsection{The algorithm for propagating features along dependency arcs}
+
+Listing \ref{lst:subtree_flex} contains a function for recurrently inflecting subtrees. It invokes another function \mintinline{Python}{filter_accommodable_feats} which interfaces directly with the ruleset and the representation of the tagset itself, in order to narrow down the features which will be propagated into subtrees. Based on the dependency label of each child's arc, the target feats are filtered by rules, and subsequantly passed to the recurrent call of the function. At each node, the paired token is inflected using \mintinline{Python}{flex_token} which calls one of the two methods for inflecting individual words. The data is stored in a dict, which will be further processed to regain the initial ordering and formatting of the input.
+
+\begin{listing}[htbp]
+\inputminted[linenos,tabsize=2,breaklines]{Python}{subtree_flex_snippet.py}
+\caption{Recurrent inflection of phrases represented as subtrees.}
+\label{lst:subtree_flex}
+\end{listing}
+
+\subsubsection{Numeral phrases}
+The syntactical behavior of numerals in Polish (and their interaction with nouns in particular) is very subtle. In the NKJP tagset, this behavior is described by three attributes: case, collectivity, and accommodability. Most nouns bind with noncollective (\textit{ncol}) forms of numerals, but a select few (e.g. \inlinegloss{dziecko}) requires binding to collective forms (\textit{col}). However there is no $1:1$ correspondence between these features, as \textit{plurale tantum} nouns such as \inlinegloss{skrzypce}, have a separate value of collectivity (\textit{pt}), which, for the purposes of accommodation, is to be treated as equivalent to \textit{col}. Additionally constructions with numerals can be either agreeing (\textit{congr}) or governing (\textit{rec}), the former accommodating on case of the noun, and the latter governing, imposing the genitive case on the associated nouns. This is problematic, beacuse in UD (in accordance with the semantic criterion for headedness) numerals are subordinated to their associated nouns. It is only after descending lower in the tree, that it may turn out, that a given noun (and its subtree) was not to be inflected, because it is bound by a governing numeral.
+
+\begin{figure}[H]
+\centering
+\begin{dependency}[edge slant=0]
+\begin{deptext}[column sep=1cm]
+z \& trojgiem \& drzwi \& \& o \& trojgu \& drzwi \\
+\end{deptext}
+\deproot{3}{ROOT}
+\depedge{3}{1}{case}
+\depedge{3}{2}{nummod:gov}
+\deproot{7}{ROOT}
+\depedge{7}{5}{case}
+\depedge{7}{6}{nummod:gov}
+\end{dependency}
+\caption{UD Dependency trees for two numeral phrases, in both cases it is the numeral that takes up the case imposed by the preposition, the noun stays in the genitive, as it is governed by the numeral.} \label{tree:numerals}
+\end{figure}
+
+One solution would be to adopt a different dependency annotation scheme, e.g. one where numerals are heads of their governed nouns. However this would require training a parser on data annotated in such a scheme\footnote{This is even more complicated as \textit{pl\_nask} is a transformer based model. The transformer layers themselves are modified during training, which entails, that all the annotating components (tagger, NER, dependency parser) have to be trained on the same data, at the same time. \textit{pl\_nask} was trained on NKJP in the UD format, which contains all three annotation layers. There are no such datasets for other dependency annotation schemes.}. Moreover, the most popular syntactically oriented dependency annotation scheme --- SUD, also attaches numerals as children of the nouns they govern. The native (non-UD) annotation scheme of PDB attaches governed nouns as children of numerals, but there is no spaCy model available at the moment, trained in this scheme.
+
+Another solution, and this is the one that has been chosen in the final version, is to force the accommodating versions of the numerals while inflecting. It is favourable, because it does not modify the algorithm itself, instead it just modifies the morphology formalization, by adding a \textit{deprel} $\rightarrow$ \textit{forced attribute values} mapping. For the \textit{nummod:gov}, a mapping \textit{nummod:gov} $\rightarrow$ \textit{congr} would be introduced. This leads to inelegant, but still somewhat common ways of connecting numerals with collective nouns. For instance, when inflecting the following into instrumental case:
+
+\gloss{Dziesięcioro drzwi i dwoje dzieci}
+
+\noindent ideally one would expect:
+
+\gloss{Dziesięciorgiem drzwi i dwojgiem dzieci}
+
+\noindent instead the system will produce:
+
+\gloss{Dziesięcioma drzwiami i dwoma dziećmi}
+
+\noindent Both the noun, and the numeral then share the case attribute (therefore case should be manually added to accommodated attributes for deprels representing these constructions), and so inflection can proceed as in other cases.
+
+\section{Evaluation}
+Evaluating NLP systems is usually done in a quantitative fashion, i.e. a big dataset of test cases is collected, and then the output of the system is compared to the predefined, expected (\textit{gold}) outputs, and aggregated using established evaluation metrics. This procedure assumes that all the examples are equivalent, i.e. that they should contribute the same, towards the final score. Nevertheless one might expect that more intricate grammatical constructions would be rarer, and so handling them would be underemphasized by the evaluation procedure. For this reason, two methods of evaluation will be considered, one involving hand-crafted examples which are meant to reflect the scope of interest, and another which uses a much bigger test set. The precise results will be discussed below, but the four general criteria of evaluation listed in \autoref{sec:motivation}, can now be assessed:
+
+\begin{enumerate}
+\item \textbf{Semantical correctness}: the system does not introduce, or remove any words, and so any semantic deviation must stem from failures to accurately capture the syntactic structure by the system.
+\item \textbf{Syntactical correctness}: the system attempts to capture the syntactic structure of inflected phrases, albeit it is not faultless, the precise metrics will be listed below.
+\item \textbf{Flexibility}: there is no explicit domain-dependency. The main gain in the domain of flexibility, is the extension of inflection into complex phrases, although the range of constructions which the system is capable of inflecting, is narrowed down. For words outside of the vocabulary, a neural component can be used instead.
+\item \textbf{Control}: the system is predicatable and stable, mainly to the degree that other components are able to perform. The most important failures can come from lemmatization, and parsing errors.
+\end{enumerate}
+
+\subsection{Unit tests}
+The qualitative tests were done in the paradigm of unit tests, i.e. a set of test cases which are meant to reflect on some more challenging problems for an application, and ensure its proper functioning. These tests reflect the inflection algorithm itself, as all the cases where errors would be produced due to lemmatization, tagging, or parsing errors, were modified until correct analyses were given. For example the input phrase:
+
+\gloss{Polskie Górnictwo Naftowe i Gazownictwo S.A.}
+
+\noindent Had to be modified to:
+
+\gloss{Polskie Górnictwo Naftowe i Gazownictwo}
+
+\noindent Because \inlinegloss{S.} was incorrectly lemmatized as an abbreviation for \inlinegloss{sekunda}. In \autoref{lst:unit_tests} all the test cases are listed. The dictionary-based single word inflection algorithm was used. The system passes all the tests.
+
+
+\begin{listing}[htbp]
+\tiny
+\inputminted[linenos,tabsize=2,breaklines]{Python}{tests_snippet.py}
+\vspace{-15pt}
+\caption{Unit test cases, the arguments in each tuple are as follows: the input phrase, the desired morphological profile, the expected output.}
+\label{lst:unit_tests}
+\end{listing}
+
+\subsection{Quantitative evaluation}
+In the quantitative evaluation, around $49 k$ examples of phrases in different inflections were extracted from the lexicon \textbf{SEJF}\cite{cze:sav:18}. Nominal phrases consisting of a noun and an adjective are the most common, but other, and more complex variable constructions are also present. Each inflected form of the phrase is paired with a tag, and a base form in the lexicon, and so they can be used to evaluate the system. The phrases were inflected using the dictionary method, and no attempt was made to isolate the errors of the other components of the system. Therefore, the evaluation is reflective of the system as a whole, including the dependency parser, lemmatizer and tagger, as opposed to the inflection method in itself. The final accuracy equals $\textbf{88.21\%}$, i.e. in $88.21\%$ cases the output is (modulo permutations) orthographically identical to the inflected form listed by the dictionary. In \autoref{tab:quanterr} some examples of errors are listed, annotated with the discovered causes of errors.
+
+\begin{table}[]
+\scriptsize
+\centering
+\begin{tabular}{p{2.2cm}|p{2.2cm}|p{2.2cm}|p{2.2cm}|p{2.2cm}}
+\textbf{Base} & \textbf{Target pattern} & \textbf{Output} & \textbf{Gold} & \textbf{Comment} \\
+\toprule
+	\inlinegloss{płacz i zgrzytanie zębów} & \textsc{loc:m3} & \inlinegloss{płaczu i zgrzytającym zębów} & \inlinegloss{płaczu i zgrzytaniu zębów} & Unnecessary agreement in the ruleset \\
+\hline
+	\inlinegloss{warte lepszej sprawy} & \textsc{sg:inst:m1} & \inlinegloss{wartym lepszym sprawy} & \inlinegloss{wartym lepszej sprawy} & Parser error \\
+\hline
+	\inlinegloss{dziurawy worek} & \textsc{sg:dat:m3} & \inlinegloss{dziurawemu worek} & \inlinegloss{dziurawemu workowi} & Parser error \\
+\hline
+	\inlinegloss{czapka uszanka} & \textsc{pl:acc:f} & \inlinegloss{czapki uszanka} & \inlinegloss{czapki uszanki} & No agreement in the ruleset \\
+\hline
+	\inlinegloss{fitness club} & \textsc{pl:gen:m3} & \inlinegloss{fitness club} & \inlinegloss{fitness clubów} & No agreement in the ruleset \\
+\hline
+	\inlinegloss{młode wilczyce} & \textsc{pl:gen:f} & \inlinegloss{młode wilczyc} & \inlinegloss{młodych wilczyc} & Parser/Tagger error \\
+\hline
+	\inlinegloss{bilans czterolatka} & \textsc{pl:nom:m3} & \inlinegloss{bilanse czterolatka} & \inlinegloss{bilansy czterolatka} & Stylistic difference \\
+\hline
+	\inlinegloss{ostry nabój} & \textsc{pl:gen:m3} & \inlinegloss{ostrych naboi} & \inlinegloss{ostrych nabojów} & Stylistic difference \\
+\hline
+	\inlinegloss{happy end} & \textsc{sg:inst:m3} & \inlinegloss{happy end} & \inlinegloss{happy endem} & Parser/Tagger error \\
+\hline
+	\inlinegloss{zasadnicza rozmowa} & \textsc{sg:dat:f} & \inlinegloss{zasadniczej rozmowie} & \inlinegloss{rozmowom zasadniczym} & Annotation error \\
+\hline
+	\inlinegloss{cioteczna siostra} & \textsc{sg:loc:f} & \inlinegloss{ciotecznej siostrze} & \inlinegloss{siostrach ciotecznych} & Annotation error \\
+\bottomrule
+\end{tabular}
+\caption{Analysis of a random sample of errors on the SEJF lexicon.}
+\label{tab:quanterr}
+\end{table}
+
+\section{Applications}
+The main application of the system: template-based NLG for Polish will now be discussed. In subsequent sections some additional use cases and extensions will be sketched out.
+\subsection{Parameterized Templates}
+
+\begin{listing}[htbp]
+\footnotesize
+\inputminted[linenos,tabsize=2,breaklines]{Python}{templates_snippet.py}
+\caption{Generating text by using the inflection component.}
+\label{lst:generated}
+\end{listing}
+
+The code in \autoref{lst:templates} combinatorically produces the messages listed in \autoref{lst:generated}. It uses the \mintinline{Python}{pl_nask} spaCy model, in which the inflection capabilities are implemented as part of the \mintinline{Python}{morfeusz} pipeline component. The input text has to be first processed by the model, and then passed to the \mintinline{Python}{flex} method. Some messages might be nonsensical, e.g. \inlinegloss{Myślę o dwu wykonanych z wełny kimonach w stylu sportowym}, but this is a matter of semantics, not of inflection. Here the feature combinations are purely random, but they could be constrained, e.g. to feature combinations actually occuring in the context (for example, a product database), in order to filter out nonsensical output.
+
+The templates themselves are generated from the ground up dynamically, but they could be predefined with parameterized slots. The rough syntactical roles are given in capital letters, whereas any morphological constraints are given after `:'. If a template is more fleshed out beforehand, the gaps will usually need to be parameterized with these morphological constraints more densely.
+
+\gloss{Znaleźliśmy dla Ciebie cztery \textsc{\#NOUN:pl:acc\#}!}
+
+\begin{listing}[htbp]
+\footnotesize
+\inputminted[linenos,tabsize=2,breaklines]{Python}{filled.py}
+\caption{The generated messages.}
+\label{lst:templates}
+\end{listing}
+
+\subsubsection{Generating templates}
+
+The parameters in gaps specifying target morphology would normally have to be input by hand. But it is possible to partially automate this step by delexicalizing regular sentences, and marking the newly created gaps with features of the extracted words. For instance
+
+\gloss{Na co dzień, jeżdżę rowerem.}
+
+\noindent can be delexicalized with respect tot the noun \inlinegloss{rowerem}, and then parameterized by its morpological tag:
+
+\gloss{Na co dzień, jeżdżę \textsc{\#sg:inst:m3\#}.}
+
+\noindent which can be subsequently relexicalized. The entire procedure is described in \autoref{lst:delexicalization}. It should be observed however, that the tag includes gender, which in this case is not due to the context itself, but rather because of the initial filling of the gap. If a noun of a different gender (e.g. \inlinegloss{dorożka}) were to be put in it, no form satisfying \textsc{m3} would be found, and so it would not be inflected. A mature solution would have to filter these morphological features, in order to parametrize the gap only with those, which are imposed by the context.
+
+\begin{listing}[htbp]
+\footnotesize
+\inputminted[linenos,tabsize=2,breaklines]{Python}{delexicalization_snippet.py}
+\caption{Delexicalization of the input sentence, and filling the gap with different nominal phrases.}
+\label{lst:delexicalization}
+\end{listing}
+
+\subsection{Extensions}
+In this section, some applications of the aforementioned tools and methods outside the main scope of interest will be described.
+
+\subsubsection{Derivation and inflection}
+\label{derivation}
+It should be noted, that the phenomenon of inflection is closely related to \textit{derivation}, the boundary between the two being rather blurry. Derivation is a heterogeneous set of mechanisms, which includes, among others: \begin{itemize}
+	\item generation of diminutives, e.g. \inlinegloss{pies} $\rightarrow$ \inlinegloss{piesek}
+	\item generation of names of professions or tools out or verbs \inlinegloss{piła} $\rightarrow$ \inlinegloss{pilarz}
+	\item generation of nouns signifying possibility of some action \inlinegloss{palić} $\rightarrow$ \inlinegloss{palny}
+	\item generation of new verbs by prepending them with prepositions \\ \inlinegloss{prowadzić} $\rightarrow$ \inlinegloss{przeprowadzić}
+\end{itemize}
+\textit{et cetera}. Derivation, as opposed to inflection, generally includes a change in meaning, and is less regular and systematic\footnote{\textbf{Słowosieć} (\url{http://plwordnet.pwr.wroc.pl/wordnet/}) --- the Polish version of \textbf{WordNet}, is an important step in the direction of systematizating derivation patterns. This year (2022) derivation in Polish (among others) was also one of the tasks of the yearly \textbf{SIGMORPHON} contest (\url{https://github.com/sigmorphon/2022InflectionST}).}. These are also the reasons, for which including these in a template-based NLG system is not a very pressing concern, as they make delexicalization in the form of templates less viable. It would certainly be interesting to see a computer system capable of creative word formation, however this would require working within an entirely different framework, and a different set of tools. For this reason, derivation as such has been excluded from the scope of interest specified in \autoref{scope of interest}.
+
+In SGJP lexemes include some forms, which belong to a different grammatical class, but are systematically derivable. For example gerunds and adjectival participles, are both grouped in the same lexeme, despite being recognized as independent grammatical classes. This grouping means, that gerunds and participles will be lemmatized to infinitive forms of the verbs they were derived from. For example "tańczenie" and "tańczący" will both be lemmatized to "tańczyć". This makes it important to distinguish a separate category of \textit{flexemes}. A flexeme groups all the forms, which share the set of morphological attributes which they exemplify. Therefore "tańczący" and "nietańcząca" will belong to the same flexeme (as they both exemplify number, case, gender, aspect, and negation), but "tańczenie" will belong to a different one (because it has a fixed gender) and so will "tańczysz" (e.g. because it does not exemplify grammatical case).
+
+In some applications it would be beneficial to be able to computationally derive forms which cross the flexeme boundary. It requires adding POS tags to the array of features which the algorithm can handle. 
+Nevertheless an important provision has to be made. Crossing the flexeme boundary might introduce a new grammatical attribute to be selected for. E.g. while converting a verb \inlinegloss{nosić} into a gerund, the categories of case, and negation are introduced, for which the input form has no value. Therefore forms such as \inlinegloss{nienoszenie}, \inlinegloss{noszeniu} and \inlinegloss{noszenie} are all equivalent. The original dictionary-based algorithm, has no way of preferring one of these, and it would be intuitive, that the affirmative form in the nomative were returned as the default one, unless specified otherwise by the user. This requires, that during inflection tags are enriched with default values for absent attributes, which is handled by the \mintinline{Python}{enrich} keyword argument to the \mintinline{Python}{tag_to_feats}. The default values are specified in \autoref{tab:def_vals}. Some examples of single word inflections which cross the boundary of flexemes, are listed in \autoref{lst:unit_tests}
+
+
+\begin{table}[]
+\centering
+\begin{tabular}{l|l}
+\textbf{attribute} & \textbf{def. value} \\ \hline
+case & nom \\ \hline
+gender & m1 \\ \hline
+negation & aff \\ \hline
+number & sg \\ \hline
+degree & pos \\ \hline
+aspect & ind \\ \hline
+accommodability & congr \\ 
+\end{tabular}
+\caption{Default values for attributes.}
+\label{tab:def_vals}
+\end{table}
+
+\subsubsection{Lemmatization}
+To a certain degree inflection can be thought of as an inverse of lemmatization. The latter task can also be extended to phrases, which can be said to possess some privileged, base form. This is an important subject outside of NLG, for example in named entity normalization and resolution. Lemmatization of Polish phrases (mainly in the context of proper names) has been previously discussed by~\cite{marcinczuk-2017-lemmatization} and was one of the tasks proposed for the 2019 edition of the PolEval competition~\cite{ogr:kob:19:poleval}. A trivial solution for phrase lemmatization can be based on concatenating lemmata of individual tokens. Unfortunately this rarely produces satisfying lemmata, as all the information about internal structure of the phrase is lost. For example:
+
+\gloss{Polskiej Rady Żywienia}
+
+\noindent will, after concatenation of lowercased lemmas produce:
+
+\gloss{polski rada żywić}
+
+\noindent instead of:
+
+\gloss{Polska Rada Żywienia}
+
+The problem is nearly identical to the one, which appeared while inflecting phrases. The root of the phrase could be lemmatized using standard means, but other words are bound by grammatical relations, which force taking up particular forms. Ensuring that these constraints are not violated requires inflection of the remaining words in accordance with the changes resulting from lemmatization of the root. This entails, that a slight alteration of the phrase inflection algorithm can give capabilities of lemmatizing phrases.
+
+\begin{listing}[htbp]
+\inputminted[linenos,tabsize=2,breaklines]{Python}{lemmatization_snippet.py}
+\caption{Function for lemmatizing phrases.}
+\label{lst:lemmatization_flex}
+\end{listing}
+
+Initially, the root of the phrase is inflected to its lemma, and all the morphological alterations are registered. This is done via a mapping from POS tags, to lists of full morphological tags which a lemma might exhibit\footnote{It should be observed that this particular method, as opposed to traditional lemmatization, does not cross flexeme boundaries, e.g. adjectival participles will not be converted to infinitives. This is important, as such conversions might make the base form unrecognizable.}. For instance: anterior participles with POS tag \textsc{pant} have lemmas with either \textsc{pant:imperf} or \textsc{pant:perf}, whereas lemmas for nouns exhibit a wider array of features, with different genders, numbers (in the case of \textit{plurale tantum}) \textit{etc}. Among these, the one with smallest size of symmetric difference with respect to the current tag is selected. The root is then inflected into this target tag, and all the morphological alterations with respect to the original tag, are propagated along dependency arcs, just as in the case of phrase inflection.
+
+This method has been evaluated quantitatively on the same resource --- SEJF. This time, different inflected forms were put in as input, with the base forms being the target forms. The algorithm achieves $\textbf{78.93\%}$ accuracy, which is a significant improvement, over the baseline (concatenating lemmas) achieving $\textbf{36.06\%}$. It should be noted however, that this algorithm is not well suited to lemmatizing phrases, which exhibit plural number in their base form, as is the case in most phrases involving numerals. This is because lemmatizing the root usually involves converting it into the singular form.
+
+\subsubsection{Extending into other languages}
+
+To an important degree the inflection algorithm described above is language agnostic, and so it is natural to attempt to extend it into other languages. To test the feasibility of working in a different language, a similar solution was prepared for Russian. Russian is closely related to Polish, and also exhibits rich morphology (being a fusional language, like Polish), but employs a different alphabet. The main difficulty in implementation lied in finding compatible resources. The Russian spaCy model is trained on a non-official silver-standard corpus\footnote{\url{https://github.com/natasha/nerus}}. The morphological layer in this corpus is annotated in UFEATS tagset, and so the agreement statistics and rules were formulated in this tagset aswell, by extracting them based on a subset of documents in the corpus. It was not possible to find a dictionary for Russian in this tagset, but because of the size of the corpus, it was possible to generate such a dictionary based on the forms in the data. Unfortunately the corpus is not annotated with lemmata, so this information had to be added \textit{via} external resources: the \textbf{pymorphy2} package\footnote{\url{https://github.com/kmike/pymorphy2}}. 
+
+Regrettably, a manual analysis of the general performance of the system shows that it is significantly less reliable than that of the Polish application. For this reason a quantitative analysis of the entire system, which would not be able to isolate the inflection component itself, was not undertaken. Nevertheless, in \autoref{lst:russian_inflection} some examples of successful inflections are shown, to demonstrate that transfer is generally possible. A more mature solution would require obtaining a better set of resources, perhaps specified in a native tagset for representing Russian morphology.
+
+\begin{listing}[H]
+\small
+\usemintedstyle{perldoc} 
+\begin{otherlanguage*}{russian}
+\inputminted[linenos,tabsize=2,breaklines]{Python}{russian_tests_snippet.py}
+\end{otherlanguage*}
+\caption{Some examples of the system inflecting bases (the first string) into desired UFEATS patterns (second string). System outputs are in the commented lines below. The examples were taken from the Russian Wiktionary}
+\label{lst:russian_inflection}
+\end{listing}
+
+\section{Concluding remarks}
+This thesis aimed to discuss an implementation of the system for generating inflections for the purposes of Natural Language Generation. Two methods for inflecting individual words were discussed, with attempts to evaluate them. It has been shown, that the neural model has an area of an application in inflecting words outside of the dictionary, but is generally inferior to the dictionary method. The methods for inflecting individual words were then integrated into an algorithm for inflecting phrases. It has been shown, that to a useful degree, agreement relations (which are an important factor in inflecting phrases) can be approximated with dependency analyses of the phrases. This method of representing their structure, allows to inflect a broad range of linguistic constructions without violating syntactic constraints. In the end, the system exhibits a rather classical structure, using rules, recurrent data structures, and dictionaries. 
+
+The main application of the system has been discussed, with examples in code, as to how to use it for NLG. Some extensions for basic derivation, lemmatization of phrases, and support for languages other than Polish, were sketched out together with the necessary provisions in the code of the system.
+
+The methods presented here, can also be thought of as parts of a larger suite of tools for NLG, which could contain other algorithms, such as tools for constructing numeral phrases out of numbers represented digitally, or a more robust system for handling verbal paradigms, and sentence transformations in general. These areas however, are much more difficult to handle in a language-agnostic manner, as the standard approach to segmentation and morphological treatment of Polish verbs, and numerals is quite intricate. 
+
+\bibliographystyle{plain}
+\bibliography{bib}
+
+\end{document}

@@ -1,0 +1,544 @@
+{
+  "DEFAULT_VALS": {
+    "Part of Speech": "",
+    "person": "",
+    "case": "nom",
+    "gender": "m1",
+    "negation": "aff",
+    "number": "sg",
+    "degree": "pos",
+    "aspect": "ind",
+    "prepositionality": "",
+    "accomodability": "congr",
+    "accentibility": "",
+    "agglutination": "",
+    "vocality": "",
+    "fullstoppedness": "",
+    "collectivity": "" 
+  },
+  "ATTR2FEATS": {
+    "Part of Speech": [
+      "pacta",
+      "pcon",
+      "subst",
+      "fin",
+      "impt",
+      "imps",
+      "ger",
+      "adja",
+      "adv",
+      "ppron3",
+      "conj",
+      "ppron12",
+      "part",
+      "pant",
+      "pred",
+      "prep",
+      "adjp",
+      "num",
+      "inf",
+      "frag",
+      "pact",
+      "cond",
+      "bedzie",
+      "depr",
+      "brev",
+      "comp",
+      "interj",
+      "aglt",
+      "numcomp",
+      "adjc",
+      "winien",
+      "praet",
+      "ppas",
+      "adj",
+      "siebie",
+      "emo",
+      "interp",
+      "romandig",
+      "dig",
+      "ign"
+    ],
+    "person": [
+      "pri",
+      "sec",
+      "ter"
+    ],
+    "case": [
+      "nom",
+      "acc",
+      "dat",
+      "gen",
+      "inst",
+      "loc",
+      "voc"
+    ],
+    "gender": [
+      "f",
+      "m1",
+      "m2",
+      "m3",
+      "n"
+    ],
+    "negation": [
+      "aff",
+      "neg"
+    ],
+    "number": [
+      "sg",
+      "pl"
+    ],
+    "degree": [
+      "pos",
+      "com",
+      "sup"
+    ],
+    "aspect": [
+      "perf",
+      "imperf"
+    ],
+    "prepositionality": [
+      "npraep",
+      "praep"
+    ],
+    "accomodability": [
+      "congr",
+      "rec"
+    ],
+    "accentibility": [
+      "akc",
+      "nakc"
+    ],
+    "agglutination": [
+      "agl",
+      "nagl"
+    ],
+    "vocality": [
+      "nwok",
+      "wok"
+    ],
+    "fullstoppedness": [
+      "npun",
+      "pun"
+    ],
+    "collectivity": [
+      "col",
+      "ncol",
+      "pt"
+    ]
+  },
+  "VAL2ATTR": {
+    "pacta": "Part of Speech",
+    "pcon": "Part of Speech",
+    "subst": "Part of Speech",
+    "fin": "Part of Speech",
+    "impt": "Part of Speech",
+    "imps": "Part of Speech",
+    "ger": "Part of Speech",
+    "adja": "Part of Speech",
+    "adv": "Part of Speech",
+    "ppron3": "Part of Speech",
+    "conj": "Part of Speech",
+    "ppron12": "Part of Speech",
+    "part": "Part of Speech",
+    "pant": "Part of Speech",
+    "pred": "Part of Speech",
+    "prep": "Part of Speech",
+    "adjp": "Part of Speech",
+    "num": "Part of Speech",
+    "inf": "Part of Speech",
+    "frag": "Part of Speech",
+    "pact": "Part of Speech",
+    "cond": "Part of Speech",
+    "bedzie": "Part of Speech",
+    "depr": "Part of Speech",
+    "brev": "Part of Speech",
+    "comp": "Part of Speech",
+    "interj": "Part of Speech",
+    "aglt": "Part of Speech",
+    "numcomp": "Part of Speech",
+    "adjc": "Part of Speech",
+    "winien": "Part of Speech",
+    "praet": "Part of Speech",
+    "ppas": "Part of Speech",
+    "adj": "Part of Speech",
+    "pri": "person",
+    "sec": "person",
+    "ter": "person",
+    "nom": "case",
+    "acc": "case",
+    "dat": "case",
+    "gen": "case",
+    "inst": "case",
+    "loc": "case",
+    "voc": "case",
+    "f": "gender",
+    "m1": "gender",
+    "m2": "gender",
+    "m3": "gender",
+    "n": "gender",
+    "aff": "negation",
+    "neg": "negation",
+    "sg": "number",
+    "pl": "number",
+    "pos": "degree",
+    "com": "degree",
+    "sup": "degree",
+    "perf": "aspect",
+    "imperf": "aspect",
+    "npraep": "prepositionality",
+    "praep": "prepositionality",
+    "congr": "accomodability",
+    "rec": "accomodability",
+    "akc": "accentibility",
+    "nakc": "accentibility",
+    "agl": "agglutination",
+    "nagl": "agglutination",
+    "nwok": "vocality",
+    "wok": "vocality",
+    "npun": "fullstoppedness",
+    "pun": "fullstoppedness",
+    "col": "collectivity",
+    "ncol": "collectivity",
+    "pt": "collectivity",
+    "emo": "Part of Speech",
+    "interp": "Part of Speech",
+    "romandig": "Part of Speech",
+    "siebie": "Part of Speech",
+    "dig": "Part of Speech",
+    "ign": "Part of Speech"
+  },
+  "GOVERNING_DEPRELS": [
+  ],
+  "FORCE_FEATS":{
+    "detmod:numgov" : {"accomodability": "congr"},
+    "det:numgov" : {"accomodability": "congr"},
+    "nummod:gov" : {"accomodability": "congr"}
+  },
+  "ACCOMODATION_RULES": {
+    "acl": [
+      "number",
+      "gender",
+      "case",
+      "negation"
+    ],
+    "acl:relcl": [
+      "collectivity",
+      "negation"
+    ],
+    "advcl": [
+      "negation",
+      "agglutination"
+    ],
+    "advcl:cmpr": [
+      "person"
+    ],
+    "amod": [
+      "number",
+      "gender",
+      "case",
+      "fullstoppedness"
+    ],
+    "amod:flat": [
+      "number",
+      "gender",
+      "case",
+      "degree"
+    ],
+    "appos": [
+      "case",
+      "aspect",
+      "collectivity",
+      "negation"
+    ],
+    "aux": [
+      "number",
+      "gender",
+      "aspect"
+    ],
+    "aux:clitic": [
+      "number"
+    ],
+    "aux:pass": [
+      "number",
+      "gender"
+    ],
+    "ccomp": [
+      "negation"
+    ],
+    "ccomp:cleft": [
+      "collectivity"
+    ],
+    "ccomp:obj": [
+      "negation"
+    ],
+    "conj": [
+      "case",
+      "number",
+      "gender",
+      "collectivity",
+      "degree",
+      "negation",
+      "agglutination",
+      "accentibility",
+      "prepositionality"
+    ],
+    "cop": [
+      "number"
+    ],
+    "det": [
+      "number",
+      "gender",
+      "case"
+    ],
+    "det:numgov": [
+      "gender",
+      "case",
+      "collectivity"
+    ],
+    "det:nummod": [
+      "number",
+      "gender",
+      "case",
+      "collectivity"
+    ],
+    "det:poss": [
+      "number",
+      "gender",
+      "case",
+      "degree"
+    ],
+    "detmod:numgov": [
+      "case"
+    ],
+    "fixed": [
+      "number",
+      "aspect",
+      "collectivity",
+      "degree",
+      "vocality"
+    ],
+    "flat": [
+      "number",
+      "case",
+      "collectivity",
+      "fullstoppedness"
+    ],
+    "iobj": [
+      "negation"
+    ],
+    "list": [
+      "case"
+    ],
+    "nmod": [
+      "negation"
+    ],
+    "nmod:arg": [
+      "collectivity"
+    ],
+    "nmod:flat": [
+      "collectivity"
+    ],
+    "nmod:pred": [
+      "number",
+      "aspect",
+      "negation"
+    ],
+    "nsubj": [
+      "person",
+      "collectivity",
+      "negation"
+    ],
+    "nsubj:pass": [
+      "number",
+      "gender",
+      "case",
+      "negation"
+    ],
+    "nummod": [
+      "number",
+      "gender",
+      "case",
+      "collectivity"
+    ],
+    "nummod:flat": [
+      "number",
+      "gender",
+      "case"
+    ],
+    "nummod:gov": [
+      "collectivity",
+      "case"
+    ],
+    "obj": [
+      "collectivity",
+      "negation",
+      "fullstoppedness"
+    ],
+    "obl": [
+      "negation"
+    ],
+    "obl:agent": [
+      "collectivity",
+      "negation"
+    ],
+    "obl:arg": [
+      "degree",
+      "negation"
+    ],
+    "obl:cmpr": [
+      "collectivity",
+      "negation"
+    ],
+    "orphan": [
+      "degree",
+      "accentibility"
+    ],
+    "parataxis:insert": [
+      "collectivity",
+      "accomodability"
+    ],
+    "parataxis:obj": [
+      "collectivity"
+    ],
+    "vocative": [
+      "person"
+    ],
+    "xcomp": [
+      "number",
+      "negation"
+    ],
+    "xcomp:cleft": [
+      "number"
+    ]
+  },
+  "POS2LEMMA_TAGS":
+  {
+    "adja": [
+      "adja"
+    ],
+    "adj": [
+      "adj:sg:nom:m1:pos"
+    ],
+    "adv": [
+      "adv",
+      "adv:pos"
+    ],
+    "comp": [
+      "comp"
+    ],
+    "conj": [
+      "conj"
+    ],
+    "depr": [
+      "depr:pl:nom:m2"
+    ],
+    "frag": [
+      "frag"
+    ],
+    "ger": [
+      "ger:pl:nom:n:imperf:aff",
+      "ger:pl:nom:n:perf:aff"
+    ],
+    "inf": [
+      "inf:imperf",
+      "inf:perf"
+    ],
+    "interj": [
+      "interj"
+    ],
+    "numcomp": [
+      "numcomp"
+    ],
+    "num": [
+      "num:pl:nom:m2:rec",
+      "num:pl:nom:m3:rec",
+      "num:pl:nom:f:rec",
+      "num:pl:nom:n:rec",
+      "num:pl:nom:m2:rec:ncol",
+      "num:pl:nom:m3:rec:ncol",
+      "num:pl:nom:f:rec:ncol",
+      "num:pl:nom:n:rec:ncol",
+      "num:pl:nom:f:congr:ncol",
+      "num:pl:nom:m2:congr:ncol",
+      "num:pl:nom:m3:congr:ncol",
+      "num:pl:nom:n:congr:ncol",
+      "num:pl:nom:m1:rec",
+      "num:pl:nom:m2:rec",
+      "num:pl:nom:m3:rec",
+      "num:pl:nom:f:rec",
+      "num:pl:nom:n:rec",
+      "num:sg:nom:m1:rec",
+      "num:sg:nom:m2:rec",
+      "num:sg:nom:m3:rec",
+      "num:sg:nom:f:rec",
+      "num:sg:nom:n:rec"
+    ],
+    "pant": [
+      "pant:perf",
+      "pant:imperf"
+    ],
+    "pcon": [
+      "pcon:perf",
+      "pcon:imperf"
+    ],
+    "pact": [
+      "pact:sg:nom:m1:imperf:aff",
+      "pact:sg:nom:m1:perf:aff"
+    ],
+    "ppas": [
+      "ppas:sg:nom:m1:imperf:aff",
+      "ppas:sg:nom:m1:perf:aff"
+    ],
+    "part": [
+      "part"
+    ],
+    "ppron12": [
+      "ppron12:pl:nom:m1:pri",
+      "ppron12:pl:nom:m2:pri",
+      "ppron12:pl:nom:m3:pri",
+      "ppron12:pl:nom:f:pri",
+      "ppron12:pl:nom:n:pri",
+      "ppron12:pl:nom:m1:sec",
+      "ppron12:pl:nom:m2:sec",
+      "ppron12:pl:nom:m3:sec",
+      "ppron12:pl:nom:f:sec",
+      "ppron12:pl:nom:n:sec",
+      "ppron12:sg:nom:m1:pri",
+      "ppron12:sg:nom:m2:pri",
+      "ppron12:sg:nom:m3:pri",
+      "ppron12:sg:nom:f:pri",
+      "ppron12:sg:nom:n:pri",
+      "ppron12:sg:nom:m1:sec",
+      "ppron12:sg:nom:m2:sec",
+      "ppron12:sg:nom:m3:sec",
+      "ppron12:sg:nom:f:sec",
+      "ppron12:sg:nom:n:sec"
+    ],
+    "pred": [
+      "pred"
+    ],
+    "prep": [
+      "prep:gen",
+      "prep:gen:nwok",
+      "prep:inst",
+      "prep:inst:nwok",
+      "prep:nom"
+    ],
+    "subst": [
+      "subst:sg:nom:m1",
+      "subst:sg:nom:m2",
+      "subst:sg:nom:m3",
+      "subst:sg:nom:f",
+      "subst:sg:nom:n:ncol",
+      "subst:sg:nom:n:col",
+      "subst:pl:nom:n:pt",
+      "subst:pl:nom:m1:pt",
+      "subst:sg:nom:m3"
+    ],
+    "winien": [
+      "winien:sg:m1:imperf",
+      "winien:sg:m1:ter:imperf"
+    ]
+  }
+}

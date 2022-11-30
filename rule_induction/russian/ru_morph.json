@@ -1,0 +1,341 @@
+{
+  "DEFAULT_VALS":{
+    "Animacy": "",
+    "Aspect": "",
+    "Case": "",
+    "Degree": "",
+    "Foreign": "",
+    "Gender": "",
+    "Hyph": "",
+    "Mood": "",
+    "Number": "",
+    "Person": "",
+    "Polarity": "",
+    "Tense": "",
+    "Variant": "",
+    "VerbForm": "",
+    "Voice": ""
+  },
+  "POS2LEMMA_TAGS":{
+  },
+  "FORCE_FEATS":{
+  },
+  "ACCOMODATION_RULES":{
+    "acl": [
+      "Animacy",
+      "Case",
+      "Degree",
+      "Mood",
+      "Foreign"
+    ],
+    "advcl": [
+      "Foreign",
+      "Variant"
+    ],
+    "advmod": [
+      "Foreign",
+      "Variant",
+      "Polarity"
+    ],
+    "amod": [
+      "Number",
+      "Animacy",
+      "Case",
+      "Gender",
+      "Person",
+      "Degree",
+      "Mood",
+      "Foreign",
+      "Hyph"
+    ],
+    "appos": [
+      "Person",
+      "Aspect",
+      "Tense",
+      "Voice",
+      "Degree",
+      "Mood",
+      "VerbForm",
+      "Foreign",
+      "Variant"
+    ],
+    "aux": [
+      "Gender",
+      "Aspect"
+    ],
+    "aux:pass": [
+      "Number",
+      "Gender",
+      "Person",
+      "Foreign"
+    ],
+    "case": [
+      "Foreign"
+    ],
+    "cc": [
+      "Degree",
+      "Foreign",
+      "Polarity"
+    ],
+    "ccomp": [
+      "Mood",
+      "Variant"
+    ],
+    "compound": [
+      "Degree",
+      "Foreign",
+      "Hyph"
+    ],
+    "conj": [
+      "Degree",
+      "Mood",
+      "Foreign",
+      "Variant",
+      "Hyph"
+    ],
+    "cop": [
+      "Animacy",
+      "Foreign"
+    ],
+    "csubj": [
+      "Mood",
+      "Variant"
+    ],
+    "csubj:pass": [
+      "Person",
+      "Mood",
+      "Variant"
+    ],
+    "det": [
+      "Number",
+      "Case",
+      "Gender",
+      "Degree",
+      "Foreign",
+      "Variant"
+    ],
+    "discourse": [
+      "Degree",
+      "Foreign"
+    ],
+    "expl": [
+      "Animacy",
+      "Person"
+    ],
+    "fixed": [
+      "Number",
+      "Person",
+      "Tense",
+      "Degree",
+      "Foreign",
+      "Variant"
+    ],
+    "flat": [
+      "Animacy",
+      "Person",
+      "Tense",
+      "Degree",
+      "VerbForm",
+      "Foreign"
+    ],
+    "flat:foreign": [
+      "Number",
+      "Animacy",
+      "Foreign",
+      "Polarity"
+    ],
+    "flat:name": [
+      "Number",
+      "Animacy",
+      "Case",
+      "Gender",
+      "Person",
+      "Foreign"
+    ],
+    "iobj": [
+      "Degree",
+      "Foreign"
+    ],
+    "list": [
+      "Animacy",
+      "Case",
+      "Foreign"
+    ],
+    "mark": [
+      "Voice",
+      "VerbForm",
+      "Foreign"
+    ],
+    "nmod": [
+      "Degree",
+      "Foreign"
+    ],
+    "nsubj": [
+      "Number",
+      "Person",
+      "Mood",
+      "Foreign",
+      "Variant"
+    ],
+    "nsubj:pass": [
+      "Animacy",
+      "Gender",
+      "Person",
+      "Mood",
+      "Foreign",
+      "Variant"
+    ],
+    "nummod": [
+      "Degree",
+      "Foreign"
+    ],
+    "obj": [
+      "Degree",
+      "Foreign"
+    ],
+    "obl": [
+      "Foreign",
+      "Variant"
+    ],
+    "obl:agent": [
+      "VerbForm"
+    ],
+    "orphan": [
+      "Voice",
+      "Degree",
+      "Foreign"
+    ],
+    "parataxis": [
+      "Mood",
+      "Foreign",
+      "Variant",
+      "Polarity"
+    ],
+    "punct": [
+      "Animacy",
+      "Person",
+      "Aspect",
+      "Voice",
+      "Degree",
+      "Foreign",
+      "Hyph"
+    ],
+    "xcomp": [
+      "Foreign",
+      "Variant"
+    ]
+  },
+  "ATTR2FEATS": {
+    "Animacy": [
+      "Animacy=Anim",
+      "Animacy=Inan"
+    ],
+    "Aspect": [
+      "Aspect=Imp",
+      "Aspect=Perf"
+    ],
+    "Case": [
+      "Case=Acc",
+      "Case=Dat",
+      "Case=Gen",
+      "Case=Ins",
+      "Case=Loc",
+      "Case=Nom",
+      "Case=Par",
+      "Case=Voc"
+    ],
+    "Degree": [
+      "Degree=Cmp",
+      "Degree=Pos",
+      "Degree=Sup"
+    ],
+    "Foreign": [
+    "Foreign=Yes"
+    ],
+    "Gender": [
+      "Gender=Fem",
+      "Gender=Masc",
+      "Gender=Neut"
+    ],
+    "Hyph": [
+      "Hyph=Yes"
+    ],
+    "Mood": [
+      "Mood=Cnd",
+      "Mood=Imp",
+      "Mood=Ind"
+    ],
+    "Number": [
+      "Number=Plur",
+      "Number=Sing"
+    ],
+    "Person": [
+      "Person=1",
+      "Person=2",
+      "Person=3"
+    ],
+    "Polarity": [
+      "Polarity=Neg"
+    ],
+    "Tense": [
+      "Tense=Fut",
+      "Tense=Past",
+      "Tense=Pres"
+    ],
+    "Variant": [
+      "Variant=Short"
+    ],
+    "VerbForm": [
+      "VerbForm=Conv",
+      "VerbForm=Fin",
+      "VerbForm=Inf",
+      "VerbForm=Part"
+    ],
+    "Voice": [
+      "Voice=Act",
+      "Voice=Mid",
+      "Voice=Pass"
+    ]
+  },
+  "VAL2ATTR": {
+    "Animacy=Anim": "Animacy",
+    "Animacy=Inan": "Animacy",
+    "Mood=Imp": "Mood",
+    "Aspect=Perf": "Aspect",
+    "Case=Acc": "Case",
+    "Case=Dat": "Case",
+    "Case=Gen": "Case",
+    "Case=Ins": "Case",
+    "Case=Loc": "Case",
+    "Case=Nom": "Case",
+    "Case=Par": "Case",
+    "Case=Voc": "Case",
+    "Degree=Cmp": "Degree",
+    "Degree=Pos": "Degree",
+    "Degree=Sup": "Degree",
+    "Gender=Fem": "Gender",
+    "Gender=Masc": "Gender",
+    "Gender=Neut": "Gender",
+    "Hyph=Yes": "Hyph",
+    "Mood=Cnd": "Mood",
+    "Mood=Ind": "Mood",
+    "Number=Plur": "Number",
+    "Number=Sing": "Number",
+    "Person=1": "Person",
+    "Person=2": "Person",
+    "Person=3": "Person",
+    "Polarity=Neg": "Polarity",
+    "Tense=Fut": "Tense",
+    "Tense=Past": "Tense",
+    "Tense=Pres": "Tense",
+    "Variant=Short": "Variant",
+    "VerbForm=Conv": "VerbForm",
+    "VerbForm=Fin": "VerbForm",
+    "VerbForm=Inf": "VerbForm",
+    "VerbForm=Part": "VerbForm",
+    "Voice=Act": "Voice",
+    "Voice=Mid": "Voice",
+    "Voice=Pass": "Voice",
+    "Foreign=Yes": "Foreign"
+  }
+}
